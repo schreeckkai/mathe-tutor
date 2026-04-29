@@ -1,0 +1,273 @@
+/* ════════════════════════════════════════════════════════════════
+   GEMEINSAMES STYLING FÜR 3D-ANIMATIONEN
+   Wird von allen Visualisierungen unter visualisierungen/ geladen.
+   ──── Dunkles Theme mit gedämpften Farben für ruhige Lernumgebung
+   ════════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg:     #000000;
+  --fg:     #ecebe4;
+  --muted:  #8888a0;
+  --blue:   #58c4dd;
+  --teal:   #83c167;
+  --red:    #fc6255;
+  --yellow: #f0c674;
+  --purple: #9a72ac;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #000;
+  color: var(--fg);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#c {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+/* ─── TASK-PANEL (Aufgabenstellung oben links) ─── */
+#task-panel {
+  position: fixed;
+  top: 20px;
+  left: 22px;
+  width: 290px;
+  color: var(--fg);
+  z-index: 5;
+  pointer-events: none;
+  font-family: 'Cambria', Georgia, serif;
+}
+#task-panel .head {
+  font-family: 'Inter', sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--yellow);
+  font-weight: 600;
+  opacity: 0.85;
+  margin-bottom: 8px;
+}
+#task-panel .body {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #b8b8c8;
+  font-style: italic;
+}
+#task-panel .body .c-cyan   { color: var(--blue);   font-weight: 600; font-style: normal; }
+#task-panel .body .c-green  { color: var(--teal);   font-weight: 600; font-style: normal; }
+#task-panel .body .c-purple { color: var(--purple); font-weight: 600; font-style: normal; }
+#task-panel .body .c-yellow { color: var(--yellow); font-weight: 600; font-style: normal; }
+#task-panel .body b         { color: var(--fg);     font-weight: 600; font-style: normal; }
+
+/* ─── INFO-PANEL (Kapiteltext unten zentriert) ─── */
+#info {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(700px, calc(100% - 48px));
+  text-align: center;
+  z-index: 5;
+  pointer-events: none;
+}
+#info .label {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+#info .title {
+  font-family: 'Cambria', Georgia, serif;
+  font-size: 16px;
+  color: var(--blue);
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+#info .desc {
+  font-family: 'Cambria', Georgia, serif;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--fg);
+}
+
+/* ─── INLINE-FARBKLASSEN (in Texten verwendet) ─── */
+.c-cyan   { color: var(--blue);   font-weight: 600; }
+.c-green  { color: var(--teal);   font-weight: 600; }
+.c-teal   { color: var(--teal);   font-weight: 600; }
+.c-yellow { color: var(--yellow); font-weight: 600; }
+.c-red    { color: var(--red);    font-weight: 600; }
+.c-purple { color: var(--purple); font-weight: 600; }
+
+.formula {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 14px;
+  font-family: 'Cambria', Georgia, serif;
+}
+
+/* ─── COLUMN VECTOR (Vektor-Spaltenschreibweise mit Klammern) ─── */
+.colvec {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 3px;
+  font-family: 'Cambria', Georgia, serif;
+  font-style: normal;
+}
+.colvec .paren {
+  font-size: 2.4em;
+  line-height: 0.72;
+  font-family: 'Cambria', Georgia, serif;
+  color: inherit;
+  font-weight: 400;
+  transform: scaleY(1.18);
+}
+.colvec .cols {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.15;
+  padding: 0 3px;
+  font-size: 0.95em;
+  text-align: center;
+}
+.colvec .cols > span { text-align: center; }
+
+/* ─── TOP-BAR (Reset-/Pause-Button + Timeline) ─── */
+#top-bar {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 6;
+  color: var(--fg);
+  font-size: 13px;
+}
+#top-bar button {
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 6px 8px;
+  opacity: 0.75;
+  transition: opacity 0.15s;
+}
+#top-bar button:hover { opacity: 1; }
+
+#timeline {
+  display: flex;
+  width: 380px;
+  height: 18px;
+  gap: 3px;
+  cursor: pointer;
+}
+.segment {
+  position: relative;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: visible;
+  flex: 1;
+}
+.segment .fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: var(--muted);
+  border-radius: 2px;
+  width: 0%;
+}
+.segment.done   .fill { width: 100%; background: rgba(136, 136, 160, 0.55); }
+.segment.active .fill { background: var(--blue); }
+.segment .num {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  color: var(--fg);
+  z-index: 2;
+  font-weight: 600;
+  pointer-events: none;
+}
+.segment .ts {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.segment:hover .fill        { background: rgba(88, 196, 221, 0.55); }
+.segment.active:hover .fill { background: var(--blue); }
+
+/* ─── TOOLTIP (Hover über Timeline-Segment) ─── */
+.tooltip {
+  position: fixed;
+  background: rgba(20, 20, 30, 0.95);
+  color: var(--fg);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  display: none;
+  font-family: 'Cambria', Georgia, serif;
+}
+.tooltip .tt-title { color: var(--blue); font-weight: 600; }
+.tooltip .tt-range { color: var(--muted); font-size: 10.5px; margin-top: 2px; }
+
+/* ─── HINT (rechts oben "Klick + Zieh zum Drehen…") ─── */
+#hint {
+  position: fixed;
+  top: 18px;
+  right: 22px;
+  color: var(--muted);
+  font-size: 11px;
+  z-index: 5;
+  font-style: italic;
+  opacity: 0.7;
+  font-family: 'Cambria', Georgia, serif;
+}
+
+/* ─── RESPONSIVE: Mobile-Anpassungen ─── */
+@media (max-width: 640px) {
+  #top-bar { top: 12px; gap: 6px; max-width: calc(100vw - 16px); }
+  #timeline { width: calc(100vw - 160px); max-width: 320px; min-width: 160px; }
+  .segment .num { font-size: 9px; }
+  .segment .ts  { font-size: 8.5px; top: 22px; }
+  #hint { display: none; }
+  #task-panel { display: none; }
+  #info { bottom: 20px; width: calc(100% - 24px); }
+  #info .title { font-size: 14px; }
+  #info .desc  { font-size: 12.5px; line-height: 1.65; }
+  .formula { font-size: 13.5px; }
+}
+@media (max-width: 380px) {
+  #timeline { width: calc(100vw - 130px); min-width: 140px; }
+  .segment .ts { display: none; }
+}
+
+/* ─── EMBED-MODUS (Animation läuft im iframe der Haupt-App) ─── */
+/* Wenn ?embed=1 in der URL → Body bekommt Klasse "embed", die das
+   Task-Panel und den Hint ausblendet, weil die App drumrum schon
+   den Aufgabentext zeigt. Timeline & Info bleiben sichtbar. */
+body.embed #task-panel { display: none; }
+body.embed #hint       { display: none; }

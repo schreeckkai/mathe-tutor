@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Prisma — Interaktive Visualisierung</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0b0b0f;
+      --wire: #e8e8f0;
+      --accent: #3b82f6;
+      --accent-soft: rgba(59, 130, 246, 0.15);
+      --text: #c8c8d4;
+      --text-dim: #6a6a7a;
+      --grid-line: rgba(100, 100, 140, 0.08);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Georgia, 'Times New Roman', serif;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #header {
+      padding: 24px 32px 12px;
+      border-bottom: 1px solid var(--grid-line);
+    }
+    #header h1 {
+      font-size: 1.6rem;
+      font-weight: 400;
+      letter-spacing: 0.02em;
+      color: var(--wire);
+    }
+    #header p {
+      margin-top: 4px;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      font-style: italic;
+    }
+
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+    }
+
+    #viewport {
+      flex: 1;
+      position: relative;
+      cursor: grab;
+      min-height: 400px;
+    }
+    #viewport.dragging { cursor: grabbing; }
+    #viewport-hint {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    #panel {
+      width: 300px;
+      padding: 28px;
+      border-left: 1px solid var(--grid-line);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      overflow-y: auto;
+    }
+
+    .slider-group label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+      display: block;
+      margin-bottom: 8px;
+    }
+    .slider-group label span { color: var(--accent); }
+    .slider-group input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .info-box {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--grid-line);
+      border-radius: 8px;
+      padding: 18px 20px;
+    }
+    .calc-box {
+      background: rgba(59, 130, 246, 0.04);
+      border: 1px solid rgba(59, 130, 246, 0.12);
+      border-radius: 8px;
+      padding: 18px 20px;
+    }
+    .box-title {
+      margin: 0 0 14px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-dim);
+    }
+    .calc-box .box-title { color: var(--accent); }
+
+    .prop-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      margin-bottom: 10px;
+    }
+    .prop-row:last-child { margin-bottom: 0; }
+    .prop-label { color: var(--text-dim); }
+    .prop-val { font-variant-numeric: tabular-nums; }
+
+    .calc-item { margin-bottom: 14px; }
+    .calc-item:last-child { margin-bottom: 0; }
+    .calc-label {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      margin-bottom: 3px;
+    }
+    .calc-val {
+      font-size: 0.95rem;
+      color: var(--wire);
+    }
+    .calc-unit {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+    .calc-vol {
+      border-top: 1px solid rgba(59, 130, 246, 0.12);
+      padding-top: 12px;
+    }
+    .calc-vol .calc-val {
+      font-size: 1.1rem;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    #euler {
+      text-align: center;
+      padding: 12px 0;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      font-style: italic;
+    }
+    #euler-label {
+      font-size: 0.68rem;
+      margin-top: 4px;
+      opacity: 0.6;
+    }
+
+    @media (max-width: 720px) {
+      #main { flex-direction: column; }
+      #panel {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--grid-line);
+        max-height: 45vh;
+      }
+      #viewport { min-height: 300px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="header">
+    <h1 id="title">Dreiseitiges Prisma</h1>
+    <p id="subtitle">Grundfläche: Dreieck · Interaktive 3D-Visualisierung</p>
+  </div>
+
+  <div id="main">
+    <div id="viewport">
+      <div id="viewport-hint">Ziehen zum Drehen · Scrollen zum Zoomen</div>
+    </div>
+
+    <div id="panel">
+      <!-- Sliders -->
+      <div class="slider-group">
+        <label>Seitenzahl: <span id="sides-val">3</span></label>
+        <input type="range" id="sides" min="3" max="8" value="3">
+      </div>
+      <div class="slider-group">
+        <label>Höhe: <span id="height-val">2.0</span></label>
+        <input type="range" id="height" min="0.5" max="5" step="0.1" value="2">
+      </div>
+      <div class="slider-group">
+        <label>Grundfläche (Umkreisradius): <span id="radius-val">1.5</span></label>
+        <input type="range" id="radius" min="0.5" max="3" step="0.1" value="1.5">
+      </div>
+
+      <!-- Eigenschaften -->
+      <div class="info-box">
+        <h3 class="box-title">Eigenschaften</h3>
+        <div id="props"></div>
+      </div>
+
+      <!-- Berechnungen -->
+      <div class="calc-box">
+        <h3 class="box-title">Berechnungen</h3>
+        <div id="calcs"></div>
+      </div>
+
+      <!-- Euler -->
+      <div id="euler"></div>
+    </div>
+  </div>
+
+<script>
+// ── State ──
+let sides = 3;
+let prismHeight = 2;
+let radius = 1.5;
+
+// ── Three.js Setup ──
+const viewport = document.getElementById('viewport');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0b0f);
+
+const camera = new THREE.PerspectiveCamera(45, viewport.clientWidth / viewport.clientHeight, 0.1, 100);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+viewport.insertBefore(renderer.domElement, viewport.firstChild);
+
+// Grid
+const grid = new THREE.GridHelper(10, 20, 0x1a1a2e, 0x1a1a2e);
+grid.position.y = -1.5;
+grid.material.opacity = 0.3;
+grid.material.transparent = true;
+scene.add(grid);
+
+// Axes (3b1b style)
+function makeAxis(from, to, color) {
+  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.35 });
+  const geo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(from[0], from[1], from[2]),
+    new THREE.Vector3(to[0], to[1], to[2])
+  ]);
+  return new THREE.Line(geo, mat);
+}
+const axLen = 3.5;
+scene.add(makeAxis([-axLen,0,0], [axLen,0,0], 0xff4444));
+scene.add(makeAxis([0,-axLen,0], [0,axLen,0], 0x44ff44));
+scene.add(makeAxis([0,0,-axLen], [0,0,axLen], 0x4488ff));
+
+// ── Camera Controls ──
+const spherical = { theta: Math.PI / 4, phi: Math.PI / 6, radius: 7 };
+let mouseDown = false;
+let prevMouse = { x: 0, y: 0 };
+
+function updateCamera() {
+  camera.position.x = spherical.radius * Math.cos(spherical.phi) * Math.sin(spherical.theta);
+  camera.position.y = spherical.radius * Math.sin(spherical.phi);
+  camera.position.z = spherical.radius * Math.cos(spherical.phi) * Math.cos(spherical.theta);
+  camera.lookAt(0, 0, 0);
+}
+updateCamera();
+
+renderer.domElement.addEventListener('mousedown', e => {
+  mouseDown = true;
+  viewport.classList.add('dragging');
+  prevMouse = { x: e.clientX, y: e.clientY };
+});
+window.addEventListener('mousemove', e => {
+  if (!mouseDown) return;
+  spherical.theta -= (e.clientX - prevMouse.x) * 0.005;
+  spherical.phi = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, spherical.phi + (e.clientY - prevMouse.y) * 0.005));
+  prevMouse = { x: e.clientX, y: e.clientY };
+  updateCamera();
+});
+window.addEventListener('mouseup', () => { mouseDown = false; viewport.classList.remove('dragging'); });
+renderer.domElement.addEventListener('wheel', e => {
+  spherical.radius = Math.max(3, Math.min(15, spherical.radius + e.deltaY * 0.005));
+  updateCamera();
+}, { passive: true });
+
+// Touch
+renderer.domElement.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    mouseDown = true;
+    prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+}, { passive: true });
+renderer.domElement.addEventListener('touchmove', e => {
+  if (!mouseDown || e.touches.length !== 1) return;
+  const t = e.touches[0];
+  spherical.theta -= (t.clientX - prevMouse.x) * 0.005;
+  spherical.phi = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, spherical.phi + (t.clientY - prevMouse.y) * 0.005));
+  prevMouse = { x: t.clientX, y: t.clientY };
+  updateCamera();
+  e.preventDefault();
+}, { passive: false });
+renderer.domElement.addEventListener('touchend', () => { mouseDown = false; });
+
+// ── Build Prism ──
+let prismGroup = null;
+
+function buildPrism() {
+  if (prismGroup) scene.remove(prismGroup);
+  prismGroup = new THREE.Group();
+
+  const n = sides;
+  const h = prismHeight;
+  const r = radius;
+  const topVerts = [], botVerts = [];
+
+  for (let i = 0; i < n; i++) {
+    const angle = (2 * Math.PI * i) / n - Math.PI / 2;
+    topVerts.push(new THREE.Vector3(r * Math.cos(angle), h/2, r * Math.sin(angle)));
+    botVerts.push(new THREE.Vector3(r * Math.cos(angle), -h/2, r * Math.sin(angle)));
+  }
+
+  // Edges
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0xe8e8f0, transparent: true, opacity: 0.85 });
+  function addEdge(a, b) {
+    const geo = new THREE.BufferGeometry().setFromPoints([a, b]);
+    prismGroup.add(new THREE.Line(geo, edgeMat));
+  }
+  for (let i = 0; i < n; i++) {
+    addEdge(topVerts[i], topVerts[(i+1) % n]);
+    addEdge(botVerts[i], botVerts[(i+1) % n]);
+    addEdge(topVerts[i], botVerts[i]);
+  }
+
+  // Translucent side faces
+  const faceMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false });
+  for (let i = 0; i < n; i++) {
+    const next = (i+1) % n;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+      topVerts[i].x, topVerts[i].y, topVerts[i].z,
+      botVerts[i].x, botVerts[i].y, botVerts[i].z,
+      botVerts[next].x, botVerts[next].y, botVerts[next].z,
+      topVerts[i].x, topVerts[i].y, topVerts[i].z,
+      botVerts[next].x, botVerts[next].y, botVerts[next].z,
+      topVerts[next].x, topVerts[next].y, topVerts[next].z,
+    ]), 3));
+    prismGroup.add(new THREE.Mesh(geo, faceMat));
+  }
+
+  // Cap faces
+  const capMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false });
+  for (const cap of [topVerts, botVerts]) {
+    for (let i = 1; i < n - 1; i++) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+        cap[0].x, cap[0].y, cap[0].z,
+        cap[i].x, cap[i].y, cap[i].z,
+        cap[i+1].x, cap[i+1].y, cap[i+1].z,
+      ]), 3));
+      prismGroup.add(new THREE.Mesh(geo, capMat));
+    }
+  }
+
+  scene.add(prismGroup);
+}
+
+// ── UI Updates ──
+const polygonNames = { 3:'Dreieck', 4:'Quadrat', 5:'Fünfeck', 6:'Sechseck', 7:'Siebeneck', 8:'Achteck' };
+const prismNames = { 3:'Dreiseitiges Prisma', 4:'Vierseitiges Prisma (Quader)', 5:'Fünfseitiges Prisma', 6:'Sechsseitiges Prisma', 7:'Siebenseitiges Prisma', 8:'Achtseitiges Prisma' };
+
+function updateUI() {
+  document.getElementById('title').textContent = prismNames[sides] || sides + '-seitiges Prisma';
+  document.getElementById('subtitle').textContent = 'Grundfläche: ' + (polygonNames[sides] || sides + '-Eck') + ' · Interaktive 3D-Visualisierung';
+  document.getElementById('sides-val').textContent = sides;
+  document.getElementById('height-val').textContent = prismHeight.toFixed(1);
+  document.getElementById('radius-val').textContent = radius.toFixed(1);
+
+  const r = radius;
+  const sideLen = 2 * r * Math.sin(Math.PI / sides);
+  const apothem = r * Math.cos(Math.PI / sides);
+  const baseArea = 0.5 * sides * sideLen * apothem;
+  const lateralArea = sides * sideLen * prismHeight;
+  const totalArea = 2 * baseArea + lateralArea;
+  const volume = baseArea * prismHeight;
+
+  // Properties
+  document.getElementById('props').innerHTML = [
+    ['Ecken', sides * 2],
+    ['Kanten', sides * 3],
+    ['Flächen', sides + 2],
+    ['Seitenlänge a', sideLen.toFixed(3)],
+    ['Apothem', apothem.toFixed(3)],
+  ].map(([l,v]) => `<div class="prop-row"><span class="prop-label">${l}</span><span class="prop-val">${v}</span></div>`).join('');
+
+  // Calculations
+  document.getElementById('calcs').innerHTML = `
+    <div class="calc-item">
+      <div class="calc-label">Grundfläche A<sub>G</sub></div>
+      <div class="calc-val">${baseArea.toFixed(3)} <span class="calc-unit">FE²</span></div>
+    </div>
+    <div class="calc-item">
+      <div class="calc-label">Mantelfläche A<sub>M</sub></div>
+      <div class="calc-val">${lateralArea.toFixed(3)} <span class="calc-unit">FE²</span></div>
+    </div>
+    <div class="calc-item">
+      <div class="calc-label">Oberfläche A<sub>O</sub></div>
+      <div class="calc-val">${totalArea.toFixed(3)} <span class="calc-unit">FE²</span></div>
+    </div>
+    <div class="calc-item calc-vol">
+      <div class="calc-label">Volumen V</div>
+      <div class="calc-val">${volume.toFixed(3)} <span class="calc-unit">FE³</span></div>
+    </div>
+  `;
+
+  // Euler
+  document.getElementById('euler').innerHTML = `
+    V − K + F = ${sides*2} − ${sides*3} + ${sides+2} = 2
+    <div id="euler-label">Eulerscher Polyedersatz</div>
+  `;
+}
+
+// ── Slider Events ──
+document.getElementById('sides').addEventListener('input', e => {
+  sides = Number(e.target.value);
+  buildPrism();
+  updateUI();
+});
+document.getElementById('height').addEventListener('input', e => {
+  prismHeight = Number(e.target.value);
+  buildPrism();
+  updateUI();
+});
+document.getElementById('radius').addEventListener('input', e => {
+  radius = Number(e.target.value);
+  buildPrism();
+  updateUI();
+});
+
+// ── Animation Loop ──
+function animate() {
+  requestAnimationFrame(animate);
+  if (!mouseDown) {
+    spherical.theta += 0.003;
+    updateCamera();
+  }
+  renderer.render(scene, camera);
+}
+
+// ── Resize ──
+window.addEventListener('resize', () => {
+  camera.aspect = viewport.clientWidth / viewport.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+});
+
+// ── Init ──
+buildPrism();
+updateUI();
+animate();
+</script>
+</body>
+</html>

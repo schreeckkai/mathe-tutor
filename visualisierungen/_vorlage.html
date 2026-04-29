@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>VORLAGE — TITEL DER AUFGABE</title>
+<link rel="stylesheet" href="../shared/animation-style.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- AUFGABENTEXT (im Embed-Modus ausgeblendet — muss aber gefüllt sein, damit
+     die Animation auch standalone funktioniert). -->
+<div id="task-panel">
+  <div class="head">Aufgabe</div>
+  <div class="body">
+    Hier kommt der Aufgabentext rein. Nutze
+    <span class="c-cyan">.c-cyan</span> für Punkte/Geraden,
+    <span class="c-green">.c-green</span> für Vektoren/Richtungen,
+    <span class="c-purple">.c-purple</span> für Ebenen,
+    <span class="c-yellow">.c-yellow</span> für Parameter/Werte.
+    Spaltenvektor:
+    <span class="c-green"><span class="colvec"><span class="paren">(</span><span class="cols"><span>1</span><span>2</span><span>3</span></span><span class="paren">)</span></span></span>.
+  </div>
+</div>
+
+<div id="top-bar">
+  <button id="btn-reset" title="Neu starten">&#8634;</button>
+  <button id="btn-pause" title="Pause">&#10074;&#10074;</button>
+  <div id="timeline"></div>
+</div>
+
+<div id="hint">Klick + Zieh zum Drehen &middot; Scroll zum Zoomen</div>
+
+<div id="info">
+  <div class="label" id="infoLabel">Kapitel 1 von N</div>
+  <div class="title" id="infoTitle">&mdash;</div>
+  <div class="desc"  id="infoDesc">&mdash;</div>
+</div>
+
+<div class="tooltip" id="tooltip">
+  <div class="tt-title"></div>
+  <div class="tt-range"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../shared/scene-helpers.js"></script>
+<script src="../shared/timeline.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ──────────────────────────────────────────────
+     SCHRITT 1: Embed-Modus (lass das so)
+  ────────────────────────────────────────────── */
+  SceneHelpers.applyEmbedMode();
+
+  /* ──────────────────────────────────────────────
+     SCHRITT 2: Reale Werte und Skalierung
+     Tipp: Wähle S so, dass alle Punkte zwischen
+     etwa -7 und +7 in der Szene landen.
+  ────────────────────────────────────────────── */
+  var S = 0.4;                                                  // Skalierungsfaktor anpassen
+  var A_real = new THREE.Vector3(0,  0, 0);                    // Beispiel-Punkt 1
+  var B_real = new THREE.Vector3(10, 5, 8);                    // Beispiel-Punkt 2
+  var A = A_real.clone().multiplyScalar(S);
+  var B = B_real.clone().multiplyScalar(S);
+
+  /* ──────────────────────────────────────────────
+     SCHRITT 3: Kamera & Renderer (lass das so)
+  ────────────────────────────────────────────── */
+  var camTarget = new THREE.Vector3(2, 1, 2);                  // Mittelpunkt der Szene
+  var canvas    = document.getElementById('c');
+  var renderer  = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight, true);
+  renderer.setClearColor(0x000000, 1);
+
+  var scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x000000, 35, 80);
+
+  var camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 200);
+  camera.up.set(0, 0, 1);
+
+  var camState = {
+    camAzim: Math.PI * 0.28,
+    camElev: Math.PI * 0.32,
+    camR: 22,
+    camRMin: 6,
+    camRMax: 60,
+    lastInteract: 0,
+    autoRotate: true
+  };
+  function updateCamera() {
+    var cx = camState.camR * Math.cos(camState.camElev) * Math.cos(camState.camAzim);
+    var cy = camState.camR * Math.cos(camState.camElev) * Math.sin(camState.camAzim);
+    var cz = camState.camR * Math.sin(camState.camElev);
+    camera.position.set(camTarget.x + cx, camTarget.y + cy, camTarget.z + cz);
+    camera.lookAt(camTarget);
+  }
+  updateCamera();
+  SceneHelpers.makeOrbitControls(canvas, camState);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+
+  /* ──────────────────────────────────────────────
+     SCHRITT 4: Achsen + Raster (lass das so)
+  ────────────────────────────────────────────── */
+  var grid = new THREE.GridHelper(14, 14, 0x26263d, 0x26263d);
+  grid.rotation.x = Math.PI / 2;
+  grid.material.transparent = true;
+  grid.material.opacity = 0.55;
+  grid.material.userData.maxOp = 0.55;
+  scene.add(grid);
+  scene.add(SceneHelpers.makeAxis(new THREE.Vector3(1, 0, 0), 7.5, 'x'));
+  scene.add(SceneHelpers.makeAxis(new THREE.Vector3(0, 1, 0), 7.5, 'y'));
+  scene.add(SceneHelpers.makeAxis(new THREE.Vector3(0, 0, 1), 5.5, 'z'));
+
+  /* ──────────────────────────────────────────────
+     SCHRITT 5: Eigene Szenenobjekte erstellen
+     WICHTIG: Jedes Objekt bekommt userData.ch
+       - userData.ch = 0 → von Anfang an sichtbar
+       - userData.ch = 1 → ab Kapitel 2 sichtbar
+       - userData.ch = 2 → ab Kapitel 3 sichtbar
+       (usw.)
+  ────────────────────────────────────────────── */
+
+  // Beispiel: Punkt A mit Beschriftung (ab Kapitel 1)
+  var aDot = SceneHelpers.makeDot(A, 0x58c4dd, 0.085);
+  aDot.userData.ch = 0;
+  var aLabel = SceneHelpers.makeLabel('A(0 | 0 | 0)', '#58c4dd', 50, true);
+  aLabel.position.copy(A.clone().add(new THREE.Vector3(0.2, 0.2, 0.4)));
+  aLabel.userData.ch = 0;
+  scene.add(aDot); scene.add(aLabel);
+
+  // Beispiel: Pfeil von A nach B (ab Kapitel 2)
+  var arrowAB = SceneHelpers.makeArrow(A, B, 0x83c167, 0.26, 0.1);
+  arrowAB.userData.ch = 1;
+  scene.add(arrowAB);
+
+  // Hier weitere Objekte ergänzen…
+
+  /* ──────────────────────────────────────────────
+     SCHRITT 6: Kapitel definieren
+     Jedes Kapitel:
+       t     – Dauer in Sekunden
+       label – kleine Überschrift ("Kapitel X von Y")
+       title – Titel
+       desc  – Beschreibungstext mit HTML-Hervorhebungen
+  ────────────────────────────────────────────── */
+  var chapters = [
+    {
+      t: 5.0,
+      label: 'Kapitel 1 von 3',
+      title: 'Ausgangspunkt',
+      desc: 'Beschreibung des ersten Schritts der Animation.'
+    },
+    {
+      t: 5.5,
+      label: 'Kapitel 2 von 3',
+      title: 'Vektor wird gezeichnet',
+      desc: 'Hier passiert mathematisch das Folgende …'
+    },
+    {
+      t: 5.0,
+      label: 'Kapitel 3 von 3',
+      title: 'Ergebnis',
+      desc: 'Schlussfolgerung der Animation.'
+    }
+  ];
+
+  /* ──────────────────────────────────────────────
+     SCHRITT 7: Timeline starten + Loop (lass das so)
+  ────────────────────────────────────────────── */
+  var tl = Timeline.create({ scene: scene, chapters: chapters });
+
+  function resize() {
+    var w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, true);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+
+  var lastFrame = performance.now();
+  function loop() {
+    requestAnimationFrame(loop);
+    var now = performance.now();
+    var dt = (now - lastFrame) / 1000;
+    lastFrame = now;
+    if (dt > 0.1) dt = 0.1;
+
+    tl.tick(dt);
+
+    if (camState.autoRotate) {
+      camState.camAzim += dt * 0.12;
+    } else if (now - camState.lastInteract > 3500) {
+      camState.autoRotate = true;
+    }
+    updateCamera();
+    renderer.render(scene, camera);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Volumen eines dreieckigen Prismas</title>
+<style>
+  :root {
+    --bg: #000000;
+    --fg: #ecebe4;
+    --muted: #8888a0;
+    --blue: #58c4dd;
+    --teal: #83c167;
+    --red:  #fc6255;
+    --yellow: #f0c674;
+    --purple: #9a72ac;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background: var(--bg); color: var(--fg);
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    overflow: hidden;
+  }
+  #canvas { display: block; position: absolute; inset: 0; }
+  #top-bar {
+    position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 12px; align-items: center;
+    padding: 0 0 22px;
+    z-index: 10;
+    overflow: visible;
+  }
+  .btn {
+    background: transparent; color: var(--muted);
+    border: none;
+    padding: 6px 10px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: color 0.2s;
+    font-family: inherit;
+  }
+  .btn:hover { color: var(--fg); }
+  .btn.primary { color: var(--blue); }
+  #timeline {
+    display: flex; gap: 3px;
+    height: 20px; width: 420px;
+    position: relative;
+    margin: 0 4px;
+  }
+  .segment {
+    position: relative; height: 100%;
+    background: rgba(255,255,255,0.07);
+    border-radius: 3px; cursor: pointer;
+    overflow: visible;
+    transition: background 0.15s;
+    min-width: 24px;
+  }
+  .segment:hover { background: rgba(255,255,255,0.15); }
+  .segment.active { box-shadow: inset 0 0 0 1px rgba(88,196,221,0.55); }
+  .segment .fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: rgba(88,196,221,0.35);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.1s linear;
+    pointer-events: none;
+  }
+  .segment.done .fill { background: rgba(88,196,221,0.55); width: 100% !important; }
+  .segment.active .fill { background: rgba(88,196,221,0.75); }
+  .segment .num {
+    position: relative; z-index: 2;
+    font-size: 10px; font-weight: 600;
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    height: 100%;
+    pointer-events: none;
+  }
+  .segment.active .num, .segment.done .num { color: var(--fg); }
+  .segment .ts {
+    position: absolute; top: 22px; left: 0;
+    font-size: 9.5px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .segment.active .ts { color: var(--blue); }
+  .segment .tooltip {
+    position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+    color: var(--fg);
+    padding: 4px 8px;
+    font-size: 11.5px; white-space: nowrap;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 20;
+    text-shadow: 0 0 8px #000, 0 0 4px #000;
+  }
+  .segment:hover .tooltip { opacity: 1; }
+  #hint {
+    position: absolute; top: 22px; right: 24px;
+    font-size: 11px; color: var(--muted);
+    z-index: 10;
+  }
+  #info {
+    position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+    max-width: 720px; width: calc(100% - 80px);
+    text-align: center;
+    z-index: 10;
+  }
+  #info .label {
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  #info .title {
+    font-size: 16px; font-weight: 600; color: var(--blue);
+    margin-bottom: 8px;
+  }
+  #info .desc { font-size: 13.5px; color: var(--fg); line-height: 1.55; }
+  .c-cyan { color: var(--blue); font-weight: 600; }
+  .c-yellow { color: var(--yellow); font-weight: 600; }
+  .c-green { color: var(--teal); font-weight: 600; }
+  .c-red { color: var(--red); font-weight: 600; }
+  .c-purple { color: var(--purple); font-weight: 600; }
+  .formula {
+    font-family: 'Cambria Math', Georgia, serif;
+    font-style: italic;
+    font-size: 15px;
+    display: inline-block;
+    margin: 2px 0;
+    color: var(--fg);
+  }
+  sub { font-size: 0.72em; vertical-align: -0.25em; font-style: italic; }
+  sup { font-size: 0.72em; vertical-align: 0.45em; }
+  #task-panel {
+    position: absolute; top: 24px; left: 28px;
+    width: 280px;
+    font-size: 12px; color: var(--muted); line-height: 1.55;
+    z-index: 10;
+  }
+  #task-panel h3 {
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--yellow); margin: 0 0 8px; font-weight: 600;
+  }
+  #task-panel strong { color: var(--fg); }
+
+  /* ------- Mobile ------- */
+  @media (max-width: 640px) {
+    #top-bar {
+      top: 12px;
+      gap: 6px;
+      max-width: calc(100vw - 16px);
+      padding-bottom: 18px;
+    }
+    .btn { padding: 6px 6px; font-size: 12px; }
+    #timeline {
+      width: calc(100vw - 160px);
+      max-width: 320px;
+      min-width: 160px;
+      margin: 0 2px;
+    }
+    .segment { min-width: 16px; }
+    .segment .num { font-size: 9px; }
+    .segment .ts { font-size: 8.5px; top: 22px; }
+    .segment .tooltip { font-size: 10.5px; }
+    #hint { display: none; }
+    #task-panel { display: none; }
+    #info {
+      bottom: 20px;
+      width: calc(100% - 24px);
+    }
+    #info .label { font-size: 9.5px; margin-bottom: 4px; }
+    #info .title { font-size: 14px; margin-bottom: 6px; line-height: 1.3; }
+    #info .desc { font-size: 12.5px; line-height: 1.5; }
+    .formula { font-size: 13.5px; }
+  }
+  @media (max-width: 380px) {
+    #timeline { width: calc(100vw - 130px); min-width: 140px; }
+    .segment .ts { display: none; }
+    #info .title { font-size: 13px; }
+    #info .desc { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<div id="task-panel">
+  <h3>Aufgabe</h3>
+  E-Lastenrad-Transportbox als dreieckiges Prisma <strong>PQRSTU</strong>.<br>
+  Rückwand in der y-z-Ebene: gleichschenkliges Dreieck <strong>PQR</strong> mit
+  <strong>P(0|0|0)</strong>, <strong>Q(0|8|0)</strong>, <strong>R(0|4|5)</strong>.<br>
+  Vorderseite <strong>STU</strong> nach vorne verschoben, <strong>S(15|0|0)</strong>.<br>
+  1 LE = 1 dm. Gesucht: Volumen.
+</div>
+
+<div id="top-bar">
+  <button class="btn" id="btn-restart" title="Neu starten">↺ Neu</button>
+  <button class="btn primary" id="btn-play">⏸ Pause</button>
+  <div id="timeline"></div>
+</div>
+
+<div id="hint">Klick + Zieh zum Drehen · Scroll zum Zoomen</div>
+
+<div id="info">
+  <div class="label" id="i-label">Kapitel 1 von 6</div>
+  <div class="title" id="i-title">Die Transportbox</div>
+  <div class="desc" id="i-desc">Ein dreieckiges Prisma steht im Koordinatensystem.</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ===================== SETUP =====================
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x000000, 35, 80);
+
+// Z-up world (so mathematical convention matches)
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.up.set(0, 0, 1);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const dir = new THREE.DirectionalLight(0xffffff, 0.75);
+dir.position.set(10, -15, 20);
+scene.add(dir);
+
+const COL = {
+  grid:   0x26263d,
+  axis:   0x5a5a78,
+  ghost:  0x555575,
+  cyan:   0x58c4dd,
+  teal:   0x83c167,
+  red:    0xfc6255,
+  yellow: 0xf0c674,
+  purple: 0x9a72ac,
+  white:  0xecebe4,
+};
+
+// ===================== CAMERA CONTROL =====================
+const target = new THREE.Vector3(7.5, 4, 2.5); // center of prism
+let radius = 28;
+let theta = -Math.PI * 0.35;
+let phi   = Math.PI * 0.42;
+let autoRotate = true;
+let autoResumeTimer = null;
+
+function updateCamera() {
+  camera.position.x = target.x + radius * Math.sin(phi) * Math.cos(theta);
+  camera.position.y = target.y + radius * Math.sin(phi) * Math.sin(theta);
+  camera.position.z = target.z + radius * Math.cos(phi);
+  camera.lookAt(target);
+}
+updateCamera();
+
+let dragging = false, lx = 0, ly = 0;
+function pauseAuto() {
+  autoRotate = false;
+  clearTimeout(autoResumeTimer);
+  autoResumeTimer = setTimeout(() => autoRotate = true, 3500);
+}
+canvas.addEventListener('mousedown', e => { dragging = true; lx = e.clientX; ly = e.clientY; pauseAuto(); });
+window.addEventListener('mouseup', () => dragging = false);
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - lx, dy = e.clientY - ly;
+  lx = e.clientX; ly = e.clientY;
+  theta -= dx * 0.005;
+  phi = Math.max(0.15, Math.min(Math.PI - 0.15, phi - dy * 0.005));
+  updateCamera();
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  radius = Math.max(10, Math.min(60, radius + e.deltaY * 0.02));
+  updateCamera();
+  pauseAuto();
+}, { passive: false });
+let pinchStartDist = 0;
+let pinchStartRadius = 0;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    dragging = true;
+    lx = e.touches[0].clientX; ly = e.touches[0].clientY;
+    pauseAuto();
+  } else if (e.touches.length === 2) {
+    dragging = false;
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    pinchStartDist = Math.hypot(dx, dy);
+    pinchStartRadius = radius;
+    pauseAuto();
+  }
+}, { passive: true });
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length === 2 && pinchStartDist > 0) {
+    e.preventDefault();
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.hypot(dx, dy);
+    const ratio = pinchStartDist / Math.max(dist, 1);
+    radius = Math.max(10, Math.min(60, pinchStartRadius * ratio));
+    updateCamera();
+  } else if (dragging && e.touches.length === 1) {
+    e.preventDefault();
+    const dx = e.touches[0].clientX - lx, dy = e.touches[0].clientY - ly;
+    lx = e.touches[0].clientX; ly = e.touches[0].clientY;
+    theta -= dx * 0.005;
+    phi = Math.max(0.15, Math.min(Math.PI - 0.15, phi - dy * 0.005));
+    updateCamera();
+  }
+}, { passive: false });
+canvas.addEventListener('touchend', () => { dragging = false; pinchStartDist = 0; });
+canvas.addEventListener('touchcancel', () => { dragging = false; pinchStartDist = 0; });
+
+window.addEventListener('resize', () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+// ===================== HELPERS =====================
+// Parse simple LaTeX-style subscripts: "h_K", "h_{max}" → runs
+function parseSubscripts(text) {
+  const runs = [];
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === '_') {
+      i++;
+      if (text[i] === '{') {
+        i++;
+        let s = '';
+        while (i < text.length && text[i] !== '}') { s += text[i]; i++; }
+        i++; // skip closing brace
+        if (s) runs.push({ text: s, sub: true });
+      } else if (i < text.length) {
+        runs.push({ text: text[i], sub: true });
+        i++;
+      }
+    } else {
+      let s = '';
+      while (i < text.length && text[i] !== '_') { s += text[i]; i++; }
+      if (s) runs.push({ text: s, sub: false });
+    }
+  }
+  return runs;
+}
+
+function textSprite(text, color = '#ecebe4', fontSize = 96, italic = true) {
+  const cvs = document.createElement('canvas');
+  cvs.width = 256; cvs.height = 128;
+  const ctx = cvs.getContext('2d');
+  ctx.clearRect(0, 0, 256, 128);
+
+  const runs = parseSubscripts(text);
+  const fontFor = (fs, sub) =>
+    `${(italic && !sub) ? 'italic ' : (italic && sub) ? 'italic ' : ''}bold ${fs}px Cambria, Georgia, serif`;
+
+  const measure = (fs) => {
+    let total = 0;
+    for (const r of runs) {
+      ctx.font = fontFor(r.sub ? Math.round(fs * 0.62) : fs, r.sub);
+      total += ctx.measureText(r.text).width;
+    }
+    return total;
+  };
+
+  // Auto-shrink if too wide for canvas
+  const maxW = 238;
+  let fs = fontSize;
+  while (measure(fs) > maxW && fs > 10) fs -= 2;
+
+  const totalW = measure(fs);
+  ctx.fillStyle = color;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  const baseY = 64 + fs * 0.33; // approximate baseline for centered visual
+  let x = (256 - totalW) / 2;
+  for (const r of runs) {
+    const renderFs = r.sub ? Math.round(fs * 0.62) : fs;
+    ctx.font = fontFor(renderFs, r.sub);
+    const y = r.sub ? baseY + fs * 0.18 : baseY;
+    ctx.fillText(r.text, x, y);
+    x += ctx.measureText(r.text).width;
+  }
+
+  const tex = new THREE.CanvasTexture(cvs);
+  tex.anisotropy = 4;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const sp = new THREE.Sprite(mat);
+  sp.renderOrder = 999;
+  sp.scale.set(1.6, 0.8, 1);
+  return sp;
+}
+
+function lineGeo(a, b) {
+  return new THREE.BufferGeometry().setFromPoints([a, b]);
+}
+
+function polylineGeo(pts) {
+  return new THREE.BufferGeometry().setFromPoints(pts);
+}
+
+function fadeMat(m, toOpacity, duration) {
+  // simple linear fade (no GSAP dependency)
+  const from = m.opacity;
+  const start = performance.now();
+  const step = () => {
+    const t = Math.min(1, (performance.now() - start) / (duration * 1000));
+    m.opacity = from + (toOpacity - from) * t;
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+// ===================== GROUND GRID + AXES =====================
+// Grid on floor (xy plane at z=0)
+const gridGroup = new THREE.Group();
+const gMat = new THREE.LineBasicMaterial({ color: COL.grid, transparent: true, opacity: 0.6 });
+for (let x = -2; x <= 20; x += 1) {
+  const g = lineGeo(new THREE.Vector3(x, -2, 0), new THREE.Vector3(x, 12, 0));
+  gridGroup.add(new THREE.Line(g, gMat));
+}
+for (let y = -2; y <= 12; y += 1) {
+  const g = lineGeo(new THREE.Vector3(-2, y, 0), new THREE.Vector3(20, y, 0));
+  gridGroup.add(new THREE.Line(g, gMat));
+}
+scene.add(gridGroup);
+
+// Axes with arrowheads
+function makeAxis(dir, length, color, label) {
+  const g = new THREE.Group();
+  const dirN = dir.clone().normalize();
+  const lineEnd = dirN.clone().multiplyScalar(length);
+  const lineMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.7 });
+  const line = new THREE.Line(lineGeo(new THREE.Vector3(0,0,0), lineEnd), lineMat);
+  g.add(line);
+  // arrow cone
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(0.11, 0.38, 18),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4 })
+  );
+  cone.position.copy(lineEnd);
+  const up = new THREE.Vector3(0, 1, 0);
+  cone.quaternion.setFromUnitVectors(up, dirN);
+  g.add(cone);
+  // label
+  const sp = textSprite(label, '#' + color.toString(16).padStart(6,'0'), 72, true);
+  sp.position.copy(dirN.clone().multiplyScalar(length + 0.9));
+  sp.scale.set(1.2, 0.6, 1);
+  g.add(sp);
+  return g;
+}
+scene.add(makeAxis(new THREE.Vector3(1,0,0), 18, 0x777799, 'x'));
+scene.add(makeAxis(new THREE.Vector3(0,1,0), 11, 0x777799, 'y'));
+scene.add(makeAxis(new THREE.Vector3(0,0,1), 7, 0x777799, 'z'));
+
+// ===================== PRISM GEOMETRY =====================
+const P = new THREE.Vector3(0, 0, 0);
+const Q = new THREE.Vector3(0, 8, 0);
+const R = new THREE.Vector3(0, 4, 5);
+const S = new THREE.Vector3(15, 0, 0);
+const T = new THREE.Vector3(15, 8, 0);
+const U = new THREE.Vector3(15, 4, 5);
+const Mpq = new THREE.Vector3(0, 4, 0); // midpoint of PQ
+
+// --- Ghost prism (always visible, faint) ---
+function makeTriFill(a, b, c, color, opacity) {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+    a.x,a.y,a.z, b.x,b.y,b.z, c.x,c.y,c.z
+  ]), 3));
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false });
+  return new THREE.Mesh(geo, mat);
+}
+function makeQuadFill(a, b, c, d, color, opacity) {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+    a.x,a.y,a.z, b.x,b.y,b.z, c.x,c.y,c.z,
+    a.x,a.y,a.z, c.x,c.y,c.z, d.x,d.y,d.z
+  ]), 3));
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false });
+  return new THREE.Mesh(geo, mat);
+}
+
+const ghostGroup = new THREE.Group();
+const ghostEdgeMat = new THREE.LineBasicMaterial({ color: COL.ghost, transparent: true, opacity: 0.35 });
+[
+  [P,Q],[Q,R],[R,P], [S,T],[T,U],[U,S], [P,S],[Q,T],[R,U]
+].forEach(([a,b]) => ghostGroup.add(new THREE.Line(lineGeo(a,b), ghostEdgeMat)));
+// faint faces
+const ghostFaceMat = { color: 0x333355, opacity: 0.08 };
+ghostGroup.add(makeTriFill(P, Q, R, ghostFaceMat.color, ghostFaceMat.opacity));
+ghostGroup.add(makeTriFill(S, T, U, ghostFaceMat.color, ghostFaceMat.opacity));
+ghostGroup.add(makeQuadFill(P, Q, T, S, ghostFaceMat.color, ghostFaceMat.opacity));
+ghostGroup.add(makeQuadFill(P, R, U, S, ghostFaceMat.color, ghostFaceMat.opacity));
+ghostGroup.add(makeQuadFill(Q, R, U, T, ghostFaceMat.color, ghostFaceMat.opacity));
+scene.add(ghostGroup);
+
+// --- Vertex labels (P, Q, R, S, T, U) ---
+function vertexDot(pos, color) {
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(0.055, 12, 12),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6 })
+  );
+  m.position.copy(pos);
+  return m;
+}
+const dotMat = 0xecebe4;
+const vertexGroup = new THREE.Group();
+[[P,'P',new THREE.Vector3(-0.7,-0.7,-0.3)],
+ [Q,'Q',new THREE.Vector3(-0.6,0.9,-0.3)],
+ [R,'R',new THREE.Vector3(-0.5,0.1,0.9)],
+ [S,'S',new THREE.Vector3(0.7,-0.9,-0.3)],
+ [T,'T',new THREE.Vector3(0.7,0.9,-0.3)],
+ [U,'U',new THREE.Vector3(0.7,0.1,0.9)]]
+ .forEach(([pos, name, off]) => {
+  const dot = vertexDot(pos, dotMat);
+  const lbl = textSprite(name, '#ecebe4', 96, true);
+  lbl.position.copy(pos).add(off);
+  lbl.scale.set(1.1, 0.55, 1);
+  vertexGroup.add(dot, lbl);
+ });
+scene.add(vertexGroup);
+
+// --- Highlighted back triangle PQR (cross-section) ---
+const triFill = makeTriFill(P, Q, R, COL.cyan, 0);
+scene.add(triFill);
+const triEdgeMat = new THREE.LineBasicMaterial({ color: COL.cyan, transparent: true, opacity: 0 });
+const triEdges = new THREE.LineSegments(
+  new THREE.BufferGeometry().setFromPoints([P,Q, Q,R, R,P]),
+  triEdgeMat
+);
+scene.add(triEdges);
+
+// --- Isosceles legs (|PR| = |QR|) -- shown briefly ---
+const legMat = new THREE.LineBasicMaterial({ color: COL.purple, transparent: true, opacity: 0, linewidth: 2 });
+const legPR = new THREE.Line(lineGeo(P, R), legMat);
+const legQR = new THREE.Line(lineGeo(Q, R), legMat.clone());
+scene.add(legPR, legQR);
+const legLabel = textSprite('√41', '#9a72ac', 64, true);
+legLabel.position.set(-0.9, 2, 2.8);
+legLabel.scale.set(1.0, 0.5, 1);
+legLabel.material.opacity = 0;
+scene.add(legLabel);
+const legLabel2 = textSprite('√41', '#9a72ac', 64, true);
+legLabel2.position.set(-0.9, 6, 2.8);
+legLabel2.scale.set(1.0, 0.5, 1);
+legLabel2.material.opacity = 0;
+scene.add(legLabel2);
+
+// --- Helper lines (g, h_D, h_K) ---
+// g: from P to Q along y-axis
+const gProgress = { v: 0 };
+const gMatLine = new THREE.LineBasicMaterial({ color: COL.yellow, transparent: true, opacity: 0 });
+const gGeo = lineGeo(P, P.clone());
+const gLine = new THREE.Line(gGeo, gMatLine);
+scene.add(gLine);
+const gLabel = textSprite('g = 8', '#f0c674', 64, true);
+gLabel.position.set(-0.6, 4, -0.9);
+gLabel.scale.set(1.2, 0.6, 1);
+gLabel.material.opacity = 0;
+scene.add(gLabel);
+
+// h_D: from midpoint of PQ up to R
+const hdProgress = { v: 0 };
+const hdMat = new THREE.LineBasicMaterial({ color: COL.yellow, transparent: true, opacity: 0 });
+const hdGeo = lineGeo(Mpq, Mpq.clone());
+const hdLine = new THREE.Line(hdGeo, hdMat);
+scene.add(hdLine);
+// European right-angle indicator: quarter-circle arc + dot at vertex M
+const raMat = new THREE.LineBasicMaterial({ color: COL.yellow, transparent: true, opacity: 0 });
+const raR = 0.42;
+const raSegs = 24;
+const raPts = [];
+for (let i = 0; i <= raSegs; i++) {
+  const t = (i / raSegs) * (Math.PI / 2);
+  raPts.push(new THREE.Vector3(0, 4 + raR * Math.cos(t), raR * Math.sin(t)));
+}
+const raGeo = polylineGeo(raPts);
+const raLine = new THREE.Line(raGeo, raMat);
+scene.add(raLine);
+
+// Dot inside the arc (along the 45° bisector, at ~40% of the radius)
+const raDotMat = new THREE.MeshBasicMaterial({ color: COL.yellow, transparent: true, opacity: 0 });
+const raDot = new THREE.Mesh(new THREE.SphereGeometry(0.045, 14, 14), raDotMat);
+raDot.position.set(0, 4 + raR * 0.38, raR * 0.38);
+scene.add(raDot);
+// midpoint marker dot
+const mpqDotMat = new THREE.MeshStandardMaterial({ color: COL.yellow, emissive: COL.yellow, emissiveIntensity: 0.7, transparent: true, opacity: 0 });
+const mpqDot = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 12), mpqDotMat);
+mpqDot.position.copy(Mpq);
+scene.add(mpqDot);
+const hdLabel = textSprite('h_D = 5', '#f0c674', 60, true);
+hdLabel.position.set(-0.5, 4, 2.7);
+hdLabel.scale.set(1.3, 0.6, 1);
+hdLabel.material.opacity = 0;
+scene.add(hdLabel);
+const midLabel = textSprite('M', '#f0c674', 64, true);
+midLabel.position.set(-0.4, 4, -0.4);
+midLabel.scale.set(0.6, 0.3, 1);
+midLabel.material.opacity = 0;
+scene.add(midLabel);
+
+// h_K: from P to S along x-axis (prism length)
+const hkMat = new THREE.LineBasicMaterial({ color: COL.teal, transparent: true, opacity: 0 });
+const hkGeo = lineGeo(P, P.clone());
+const hkLine = new THREE.Line(hkGeo, hkMat);
+scene.add(hkLine);
+const hkLabel = textSprite('h_K = 15', '#83c167', 60, true);
+hkLabel.position.set(7.5, -0.8, -0.4);
+hkLabel.scale.set(1.5, 0.7, 1);
+hkLabel.material.opacity = 0;
+scene.add(hkLabel);
+
+// --- Extrusion (sweeping face + filled prism) ---
+const extrusion = { x: 0 };
+// Moving front triangle
+const sweepFillGeo = new THREE.BufferGeometry();
+sweepFillGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
+const sweepFillMat = new THREE.MeshStandardMaterial({ color: COL.cyan, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+const sweepFill = new THREE.Mesh(sweepFillGeo, sweepFillMat);
+scene.add(sweepFill);
+
+const sweepEdgeGeo = new THREE.BufferGeometry().setFromPoints([P,P,P,P,P,P]);
+const sweepEdgeMat = new THREE.LineBasicMaterial({ color: COL.cyan, transparent: true, opacity: 0 });
+const sweepEdges = new THREE.LineSegments(sweepEdgeGeo, sweepEdgeMat);
+scene.add(sweepEdges);
+
+// Filled trail
+const trailFaces = new THREE.Group();
+scene.add(trailFaces);
+let trailBottomMat, trailLeftMat, trailRightMat;
+function buildTrailFaces() {
+  trailFaces.clear();
+  // Each face has fixed geometry that we update by setting positions
+  const bottomGeo = new THREE.BufferGeometry();
+  bottomGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(18), 3));
+  trailBottomMat = new THREE.MeshStandardMaterial({ color: COL.cyan, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+  trailFaces.add(new THREE.Mesh(bottomGeo, trailBottomMat));
+
+  const leftGeo = new THREE.BufferGeometry();
+  leftGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(18), 3));
+  trailLeftMat = new THREE.MeshStandardMaterial({ color: COL.cyan, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+  trailFaces.add(new THREE.Mesh(leftGeo, trailLeftMat));
+
+  const rightGeo = new THREE.BufferGeometry();
+  rightGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(18), 3));
+  trailRightMat = new THREE.MeshStandardMaterial({ color: COL.cyan, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+  trailFaces.add(new THREE.Mesh(rightGeo, trailRightMat));
+}
+buildTrailFaces();
+
+function updateExtrusion() {
+  const x = extrusion.x;
+  const Sx = new THREE.Vector3(x, 0, 0);
+  const Tx = new THREE.Vector3(x, 8, 0);
+  const Ux = new THREE.Vector3(x, 4, 5);
+
+  // Moving front triangle
+  const sf = sweepFillGeo.attributes.position;
+  sf.setXYZ(0, Sx.x, Sx.y, Sx.z);
+  sf.setXYZ(1, Tx.x, Tx.y, Tx.z);
+  sf.setXYZ(2, Ux.x, Ux.y, Ux.z);
+  sf.needsUpdate = true;
+
+  const se = sweepEdgeGeo.attributes.position;
+  const pts = [Sx,Tx, Tx,Ux, Ux,Sx];
+  for (let i = 0; i < 6; i++) se.setXYZ(i, pts[i].x, pts[i].y, pts[i].z);
+  se.needsUpdate = true;
+
+  // Trail faces (bottom PQTxSx, left PRUxSx, right QRUxTx)
+  const quad = (m, a, b, c, d) => {
+    const p = m.geometry.attributes.position;
+    p.setXYZ(0, a.x,a.y,a.z); p.setXYZ(1, b.x,b.y,b.z); p.setXYZ(2, c.x,c.y,c.z);
+    p.setXYZ(3, a.x,a.y,a.z); p.setXYZ(4, c.x,c.y,c.z); p.setXYZ(5, d.x,d.y,d.z);
+    p.needsUpdate = true;
+    m.geometry.computeVertexNormals();
+  };
+  quad(trailFaces.children[0], P, Q, Tx, Sx);   // bottom
+  quad(trailFaces.children[1], P, R, Ux, Sx);   // left slope
+  quad(trailFaces.children[2], Q, Tx, Ux, R);   // right slope
+}
+updateExtrusion();
+
+// --- Chapter-1 direction hint: green arrow along x ---
+const xHintMat = new THREE.LineBasicMaterial({ color: COL.teal, transparent: true, opacity: 0 });
+const xHintStart = new THREE.Vector3(0, -1.6, 0.02);
+const xHintEnd = new THREE.Vector3(14.5, -1.6, 0.02);
+const xHintLine = new THREE.Line(lineGeo(xHintStart, xHintEnd), xHintMat);
+scene.add(xHintLine);
+const xHintConeMat = new THREE.MeshStandardMaterial({ color: COL.teal, emissive: COL.teal, emissiveIntensity: 0.5, transparent: true, opacity: 0 });
+const xHintCone = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.55, 18), xHintConeMat);
+xHintCone.position.set(15, -1.6, 0.02);
+xHintCone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0));
+scene.add(xHintCone);
+const xHintLabel = textSprite('x-Richtung', '#83c167', 56, true);
+xHintLabel.position.set(7.5, -2.3, 0.02);
+xHintLabel.scale.set(1.7, 0.55, 1);
+xHintLabel.material.opacity = 0;
+scene.add(xHintLabel);
+
+// --- Final result label ---
+const finalLabel = textSprite('V = 300 dm³', '#58c4dd', 72, true);
+finalLabel.position.set(7.5, 4, 6.5);
+finalLabel.scale.set(3.0, 1.5, 1);
+finalLabel.material.opacity = 0;
+scene.add(finalLabel);
+
+// ===================== CHAPTER NARRATIVE =====================
+const infoLabel = document.getElementById('i-label');
+const infoTitle = document.getElementById('i-title');
+const infoDesc  = document.getElementById('i-desc');
+
+const chapters = [
+  {
+    t: 4.5,
+    label: 'Kapitel 1 von 6',
+    title: 'Die Transportbox',
+    desc: 'Ein dreieckiges Prisma <strong>PQRSTU</strong> steht im Koordinatensystem. Die Rückwand PQR liegt in der <span class="c-cyan">y-z-Ebene</span>, die Box ragt in <span class="c-green">x-Richtung</span> nach vorne.',
+    enter: () => {
+      // Rückwand (PQR) als dezenter cyan-Anker für "y-z-Ebene"
+      fadeMat(triFill.material, 0.18, 0.8);
+      fadeMat(triEdges.material, 0.5, 0.8);
+      // x-Richtung als grüner Pfeil unter dem Prisma
+      fadeMat(xHintMat, 0.9, 0.8);
+      fadeMat(xHintConeMat, 1, 0.8);
+      fadeMat(xHintLabel.material, 1, 1.0);
+    },
+    exit: () => {
+      // Pfeil ausblenden, Dreieck bleibt (Kapitel 2 hebt es auf 0.45)
+      fadeMat(xHintMat, 0, 0.5);
+      fadeMat(xHintConeMat, 0, 0.5);
+      fadeMat(xHintLabel.material, 0, 0.5);
+    }
+  },
+  {
+    t: 5.0,
+    label: 'Kapitel 2 von 6',
+    title: 'Grundfläche: das Dreieck PQR',
+    desc: 'Für das Volumen nehmen wir das <span class="c-cyan">Dreieck PQR</span> als Grundfläche (nicht die rechteckige Bodenfläche PQTS). Es liegt flach in der y-z-Ebene.',
+    enter: () => {
+      fadeMat(triFill.material, 0.45, 0.8);
+      fadeMat(triEdges.material, 1.0, 0.8);
+    }
+  },
+  {
+    t: 4.5,
+    label: 'Kapitel 3 von 6',
+    title: 'Gleichschenklig: |PR| = |QR|',
+    desc: 'Die beiden Schenkel <span class="c-purple">PR</span> und <span class="c-purple">QR</span> sind gleich lang (je <span class="c-purple">√41</span>). Deshalb liegt die Spitze R bei y = 4, genau über der Mitte M von PQ.',
+    enter: () => {
+      fadeMat(legPR.material, 1, 0.5);
+      fadeMat(legQR.material, 1, 0.5);
+      fadeMat(legLabel.material, 1, 0.8);
+      fadeMat(legLabel2.material, 1, 0.8);
+    },
+    exit: () => {
+      fadeMat(legPR.material, 0, 0.5);
+      fadeMat(legQR.material, 0, 0.5);
+      fadeMat(legLabel.material, 0, 0.5);
+      fadeMat(legLabel2.material, 0, 0.5);
+    }
+  },
+  {
+    t: 6.5,
+    label: 'Kapitel 4 von 6',
+    title: 'Maße ablesen: g und h<sub>D</sub>',
+    desc: '<span class="c-yellow">g = PQ = 8</span> (Grundseite auf der y-Achse). <span class="c-yellow">h<sub>D</sub> = 5</span> (Höhe von der Mitte M aus senkrecht hoch zur Spitze R). <span class="formula">G = ½ · g · h<sub>D</sub> = ½ · 8 · 5 = 20</span>',
+    enter: () => {
+      // draw g
+      const start = performance.now();
+      const animG = () => {
+        const t = Math.min(1, (performance.now() - start) / 1000);
+        gProgress.v = t;
+        const end = new THREE.Vector3().lerpVectors(P, Q, t);
+        gGeo.attributes.position.setXYZ(1, end.x, end.y, end.z);
+        gGeo.attributes.position.needsUpdate = true;
+        if (t < 1) requestAnimationFrame(animG);
+      };
+      fadeMat(gMatLine, 1, 0.3);
+      fadeMat(gLabel.material, 1, 1.0);
+      requestAnimationFrame(animG);
+      // dot at M appears, then h_D draws
+      setTimeout(() => {
+        fadeMat(mpqDotMat, 1, 0.4);
+        fadeMat(midLabel.material, 1, 0.5);
+        const s2 = performance.now();
+        const animHD = () => {
+          const t = Math.min(1, (performance.now() - s2) / 1200);
+          hdProgress.v = t;
+          const end = new THREE.Vector3().lerpVectors(Mpq, R, t);
+          hdGeo.attributes.position.setXYZ(1, end.x, end.y, end.z);
+          hdGeo.attributes.position.needsUpdate = true;
+          if (t < 1) requestAnimationFrame(animHD);
+        };
+        fadeMat(hdMat, 1, 0.3);
+        fadeMat(raMat, 1, 0.4);
+        fadeMat(raDotMat, 1, 0.4);
+        fadeMat(hdLabel.material, 1, 1.0);
+        requestAnimationFrame(animHD);
+      }, 1100);
+    }
+  },
+  {
+    t: 7.0,
+    label: 'Kapitel 5 von 6',
+    title: 'Körperhöhe h<sub>K</sub> und Extrusion',
+    desc: 'Die Box reicht <span class="c-green">h<sub>K</sub> = 15</span> Einheiten in x-Richtung nach vorne. Das Dreieck wird entlang der x-Achse „geschoben" — der so entstehende Körper ist das Prisma.',
+    enter: () => {
+      // draw hk line
+      const start = performance.now();
+      const animHK = () => {
+        const t = Math.min(1, (performance.now() - start) / 1500);
+        const end = new THREE.Vector3().lerpVectors(P, S, t);
+        hkGeo.attributes.position.setXYZ(1, end.x, end.y, end.z);
+        hkGeo.attributes.position.needsUpdate = true;
+        if (t < 1) requestAnimationFrame(animHK);
+      };
+      fadeMat(hkMat, 1, 0.4);
+      fadeMat(hkLabel.material, 1, 1.0);
+      requestAnimationFrame(animHK);
+
+      // then extrusion
+      setTimeout(() => {
+        fadeMat(sweepFillMat, 0.7, 0.4);
+        fadeMat(sweepEdgeMat, 1, 0.4);
+        fadeMat(trailBottomMat, 0.35, 0.4);
+        fadeMat(trailLeftMat, 0.35, 0.4);
+        fadeMat(trailRightMat, 0.35, 0.4);
+        const s2 = performance.now();
+        const animExt = () => {
+          const t = Math.min(1, (performance.now() - s2) / 3500);
+          extrusion.x = 15 * (1 - Math.pow(1 - t, 3)); // ease out
+          updateExtrusion();
+          if (t < 1) requestAnimationFrame(animExt);
+        };
+        requestAnimationFrame(animExt);
+      }, 1600);
+    }
+  },
+  {
+    t: 6.5,
+    label: 'Kapitel 6 von 6',
+    title: 'Volumen = 300 dm³',
+    desc: '<span class="formula">V = G · h<sub>K</sub> = 20 · 15 = <span class="c-cyan">300</span></span>. In Wirklichkeit: <span class="c-cyan">300 dm³ = 300 Liter</span>. Die Transportbox fasst also 300 Liter.',
+    enter: () => {
+      fadeMat(finalLabel.material, 1, 1.2);
+    }
+  }
+];
+
+// ===================== PLAYHEAD =====================
+let playing = true;
+let chapterIdx = 0;
+let chapterTime = 0;
+let totalTime = 0;
+const totalDuration = chapters.reduce((s, c) => s + c.t, 0);
+
+function enterChapter(i) {
+  const ch = chapters[i];
+  infoLabel.textContent = ch.label;
+  infoTitle.innerHTML = ch.title;
+  infoDesc.innerHTML = ch.desc;
+  if (ch.enter) ch.enter();
+}
+function exitChapter(i) {
+  const ch = chapters[i];
+  if (ch.exit) ch.exit();
+}
+
+function resetAll() {
+  // reset all animated state
+  fadeMat(triFill.material, 0, 0.1);
+  fadeMat(triEdges.material, 0, 0.1);
+  fadeMat(legPR.material, 0, 0.1);
+  fadeMat(legQR.material, 0, 0.1);
+  fadeMat(legLabel.material, 0, 0.1);
+  fadeMat(legLabel2.material, 0, 0.1);
+  fadeMat(gMatLine, 0, 0.1);
+  fadeMat(gLabel.material, 0, 0.1);
+  fadeMat(hdMat, 0, 0.1);
+  fadeMat(hdLabel.material, 0, 0.1);
+  fadeMat(raMat, 0, 0.1);
+  fadeMat(raDotMat, 0, 0.1);
+  fadeMat(mpqDotMat, 0, 0.1);
+  fadeMat(midLabel.material, 0, 0.1);
+  fadeMat(hkMat, 0, 0.1);
+  fadeMat(hkLabel.material, 0, 0.1);
+  fadeMat(sweepFillMat, 0, 0.1);
+  fadeMat(sweepEdgeMat, 0, 0.1);
+  fadeMat(trailBottomMat, 0, 0.1);
+  fadeMat(trailLeftMat, 0, 0.1);
+  fadeMat(trailRightMat, 0, 0.1);
+  fadeMat(finalLabel.material, 0, 0.1);
+  fadeMat(xHintMat, 0, 0.1);
+  fadeMat(xHintConeMat, 0, 0.1);
+  fadeMat(xHintLabel.material, 0, 0.1);
+  gGeo.attributes.position.setXYZ(1, P.x, P.y, P.z); gGeo.attributes.position.needsUpdate = true;
+  hdGeo.attributes.position.setXYZ(1, Mpq.x, Mpq.y, Mpq.z); hdGeo.attributes.position.needsUpdate = true;
+  hkGeo.attributes.position.setXYZ(1, P.x, P.y, P.z); hkGeo.attributes.position.needsUpdate = true;
+  extrusion.x = 0;
+  updateExtrusion();
+}
+
+// ===================== TIMELINE & SEEKING =====================
+// Helpers
+function setLineEnd(geo, end) {
+  geo.attributes.position.setXYZ(1, end.x, end.y, end.z);
+  geo.attributes.position.needsUpdate = true;
+}
+function setOp(mat, o) { mat.opacity = o; }
+
+// Directly set cumulative visual state up to (and including) end of chapter i
+// i = -1 means "clean slate" (nothing shown beyond base ghost)
+function setEndState(i) {
+  // legs always hidden outside chapter 3 (they fade out at exit)
+  setOp(legPR.material, 0);
+  setOp(legQR.material, 0);
+  setOp(legLabel.material, 0);
+  setOp(legLabel2.material, 0);
+
+  const show = {
+    triangle: i >= 1,
+    g:        i >= 3,
+    hD:       i >= 3,
+    mpq:      i >= 3,
+    hK:       i >= 4,
+    extrusion:i >= 4,
+    final:    i >= 5,
+  };
+
+  // Dreieck: nach Kap.1 (i===0) dezent, ab Kap.2 voll
+  const triOp = i >= 1 ? 0.45 : (i >= 0 ? 0.18 : 0);
+  const triEdgeOp = i >= 1 ? 1 : (i >= 0 ? 0.5 : 0);
+  setOp(triFill.material, triOp);
+  setOp(triEdges.material, triEdgeOp);
+
+  // x-Richtungs-Pfeil nur während Kapitel 1 sichtbar — in allen End-States 0
+  setOp(xHintMat, 0);
+  setOp(xHintConeMat, 0);
+  setOp(xHintLabel.material, 0);
+
+  setOp(gMatLine, show.g ? 1 : 0);
+  setOp(gLabel.material, show.g ? 1 : 0);
+  setLineEnd(gGeo, show.g ? Q : P);
+
+  setOp(hdMat, show.hD ? 1 : 0);
+  setOp(hdLabel.material, show.hD ? 1 : 0);
+  setOp(raMat, show.hD ? 1 : 0);
+  setOp(raDotMat, show.hD ? 1 : 0);
+  setLineEnd(hdGeo, show.hD ? R : Mpq);
+
+  setOp(mpqDotMat, show.mpq ? 1 : 0);
+  setOp(midLabel.material, show.mpq ? 1 : 0);
+
+  setOp(hkMat, show.hK ? 1 : 0);
+  setOp(hkLabel.material, show.hK ? 1 : 0);
+  setLineEnd(hkGeo, show.hK ? S : P);
+
+  setOp(sweepFillMat, show.extrusion ? 0.7 : 0);
+  setOp(sweepEdgeMat, show.extrusion ? 1 : 0);
+  setOp(trailBottomMat, show.extrusion ? 0.35 : 0);
+  setOp(trailLeftMat,   show.extrusion ? 0.35 : 0);
+  setOp(trailRightMat,  show.extrusion ? 0.35 : 0);
+  extrusion.x = show.extrusion ? 15 : 0;
+  updateExtrusion();
+
+  setOp(finalLabel.material, show.final ? 1 : 0);
+}
+
+// Build chapter start times
+const cumStart = [];
+let _acc = 0;
+for (let i = 0; i < chapters.length; i++) {
+  cumStart.push(_acc);
+  _acc += chapters[i].t;
+}
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const ss = Math.floor(s - m * 60);
+  return `${m}:${String(ss).padStart(2, '0')}`;
+}
+
+// Build timeline DOM
+const timelineEl = document.getElementById('timeline');
+const segmentEls = [];
+chapters.forEach((ch, i) => {
+  const seg = document.createElement('div');
+  seg.className = 'segment';
+  seg.style.flex = ch.t;
+  seg.innerHTML = `
+    <div class="fill"></div>
+    <div class="num">${i + 1}</div>
+    <div class="ts">${formatTime(cumStart[i])}</div>
+    <div class="tooltip">${ch.title} · ${formatTime(cumStart[i])}–${formatTime(cumStart[i] + ch.t)}</div>
+  `;
+  seg.addEventListener('click', () => seekTo(i));
+  timelineEl.appendChild(seg);
+  segmentEls.push(seg);
+});
+
+function seekTo(i) {
+  // Cancel any running fade-based animations by snapping state
+  setEndState(i - 1);
+  chapterIdx = i;
+  chapterTime = 0;
+  totalTime = cumStart[i];
+  enterChapter(i);
+  playing = true;
+  document.getElementById('btn-play').textContent = '⏸ Pause';
+}
+
+// Controls
+document.getElementById('btn-play').addEventListener('click', (e) => {
+  playing = !playing;
+  e.target.textContent = playing ? '⏸ Pause' : '▶ Play';
+});
+document.getElementById('btn-restart').addEventListener('click', () => {
+  seekTo(0);
+});
+
+enterChapter(0);
+
+// ===================== RENDER LOOP =====================
+const clock = new THREE.Clock();
+
+function updateTimeline() {
+  segmentEls.forEach((seg, i) => {
+    const fill = seg.querySelector('.fill');
+    seg.classList.remove('active', 'done');
+    if (i < chapterIdx) {
+      seg.classList.add('done');
+      fill.style.width = '100%';
+    } else if (i === chapterIdx) {
+      seg.classList.add('active');
+      fill.style.width = (100 * chapterTime / chapters[i].t) + '%';
+    } else {
+      fill.style.width = '0%';
+    }
+  });
+}
+
+function animate() {
+  const dt = Math.min(0.05, clock.getDelta());
+  if (playing) {
+    chapterTime += dt;
+    totalTime += dt;
+    const ch = chapters[chapterIdx];
+    if (chapterTime >= ch.t) {
+      exitChapter(chapterIdx);
+      chapterIdx++;
+      chapterTime = 0;
+      if (chapterIdx >= chapters.length) {
+        // mark all segments done, then loop after pause
+        chapterIdx = chapters.length; // for correct display
+        updateTimeline();
+        setTimeout(() => {
+          seekTo(0);
+        }, 2500);
+        playing = false;
+        document.getElementById('btn-play').textContent = '▶ Play';
+      } else {
+        enterChapter(chapterIdx);
+      }
+    }
+  }
+  updateTimeline();
+  if (autoRotate) {
+    theta += 0.08 * dt;
+    updateCamera();
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>

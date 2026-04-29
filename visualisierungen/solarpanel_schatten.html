@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Solarpanel &ndash; Schatten durch Wohnblock?</title>
+<link rel="stylesheet" href="../shared/animation-style.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="task-panel">
+  <div class="head">Aufgabe</div>
+  <div class="body">
+    Vor einem 25 m hohen <b>Wohnblock</b>, der entlang der
+    <span class="c-purple">y-z-Ebene</span> steht, befindet sich ein Solarpanel im Punkt
+    <span class="c-cyan">P(20 | 5 | 1)</span>. Das Sonnenlicht fällt parallel
+    in Richtung <span class="c-green">v&#8407;</span> =
+    <span class="c-green"><span class="colvec"><span class="paren">(</span><span class="cols"><span>1</span><span>0,5</span><span>&minus;3</span></span><span class="paren">)</span></span></span>.
+    Zeige rechnerisch, dass <span class="c-cyan">P</span> <b>nicht</b> im Schatten des Wohnblocks liegt.
+  </div>
+</div>
+
+<div id="top-bar">
+  <button id="btn-reset" title="Neu starten">&#8634;</button>
+  <button id="btn-pause" title="Pause">&#10074;&#10074;</button>
+  <div id="timeline"></div>
+</div>
+
+<div id="hint">Klick + Zieh zum Drehen &middot; Scroll zum Zoomen</div>
+
+<div id="info">
+  <div class="label" id="infoLabel">Kapitel 1 von 6</div>
+  <div class="title" id="infoTitle">Wohnblock und Solarpanel</div>
+  <div class="desc"  id="infoDesc">&mdash;</div>
+</div>
+
+<div class="tooltip" id="tooltip">
+  <div class="tt-title"></div>
+  <div class="tt-range"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../shared/scene-helpers.js"></script>
+<script src="../shared/timeline.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  SceneHelpers.applyEmbedMode();
+
+  /* ── REALE WERTE → SKALIERTE SZENE ── */
+  var S = 0.1;
+  var P_real    = new THREE.Vector3(20, 5, 1);
+  var Send_real = new THREE.Vector3(0, -5, 61);
+  var V_real    = new THREE.Vector3(1, 0.5, -3);
+  var P    = P_real.clone().multiplyScalar(S);
+  var Send = Send_real.clone().multiplyScalar(S);
+  var Vs   = V_real.clone().multiplyScalar(S);
+
+  /* ── KAMERA & RENDERER ── */
+  var camTarget = new THREE.Vector3(0.75, 0, 3);
+  var canvas    = document.getElementById('c');
+  var renderer  = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight, true);
+  renderer.setClearColor(0x000000, 1);
+
+  var scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x000000, 35, 85);
+
+  var camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 200);
+  camera.up.set(0, 0, 1);
+
+  var camState = {
+    camAzim: Math.PI * 0.16,
+    camElev: Math.PI * 0.22,
+    camR: 20,
+    camRMin: 6,
+    camRMax: 60,
+    lastInteract: 0,
+    autoRotate: true
+  };
+  function updateCamera() {
+    var cx = camState.camR * Math.cos(camState.camElev) * Math.cos(camState.camAzim);
+    var cy = camState.camR * Math.cos(camState.camElev) * Math.sin(camState.camAzim);
+    var cz = camState.camR * Math.sin(camState.camElev);
+    camera.position.set(camTarget.x + cx, camTarget.y + cy, camTarget.z + cz);
+    camera.lookAt(camTarget);
+  }
+  updateCamera();
+  SceneHelpers.makeOrbitControls(canvas, camState);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+
+  /* ── GRUND-RASTER + ACHSEN ── */
+  var grid = new THREE.GridHelper(8, 8, 0x26263d, 0x26263d);
+  grid.rotation.x = Math.PI / 2;
+  grid.material.transparent = true;
+  grid.material.opacity = 0.5;
+  grid.material.userData.maxOp = 0.5;
+  scene.add(grid);
+  scene.add(SceneHelpers.makeAxis(new THREE.Vector3(1, 0, 0), 3.5, 'x'));
+  scene.add(SceneHelpers.makeAxis(new THREE.Vector3(0, 1, 0), 2.8, 'y'));
+  scene.add(SceneHelpers.makeAxis(new THREE.Vector3(0, 0, 1), 6.8, 'z'));
+
+  /* ── y-z-EBENE als violette Wand ── */
+  var yzPlaneGeom = new THREE.PlaneGeometry(6.5, 7);
+  var yzPlaneMat  = new THREE.MeshBasicMaterial({
+    color: 0x9a72ac, transparent: true, opacity: 0.1,
+    side: THREE.DoubleSide, depthWrite: false
+  });
+  yzPlaneMat.userData.maxOp = 0.1;
+  var yzPlane = new THREE.Mesh(yzPlaneGeom, yzPlaneMat);
+  yzPlane.rotation.y = Math.PI / 2;
+  yzPlane.position.set(0, 0, 3);
+  yzPlane.userData.ch = 0;
+  scene.add(yzPlane);
+
+  /* ── URSPRUNG ── */
+  var originDot = SceneHelpers.makeDot(new THREE.Vector3(0, 0, 0), 0x9999b5, 0.045);
+  originDot.userData.ch = 0;
+  var originLabel = SceneHelpers.makeLabel('O', '#9999b5', 38, true);
+  originLabel.position.set(-0.12, -0.15, 0.18);
+  originLabel.userData.ch = 0;
+  scene.add(originDot); scene.add(originLabel);
+
+  /* ── WOHNBLOCK ── */
+  var bldgGeom = new THREE.BoxGeometry(0.3, 3, 2.5);
+  var bldgMat  = new THREE.MeshBasicMaterial({
+    color: 0x555570, transparent: true, opacity: 0.32, depthWrite: false
+  });
+  bldgMat.userData.maxOp = 0.32;
+  var bldg = new THREE.Mesh(bldgGeom, bldgMat);
+  bldg.position.set(-0.15, 0, 1.25);
+  bldg.userData.ch = 0;
+  scene.add(bldg);
+
+  var bldgEdgesGeom = new THREE.EdgesGeometry(bldgGeom);
+  var bldgEdgesMat  = new THREE.LineBasicMaterial({ color: 0xa0a0b8, transparent: true, opacity: 0.8 });
+  bldgEdgesMat.userData.maxOp = 0.8;
+  var bldgEdges = new THREE.LineSegments(bldgEdgesGeom, bldgEdgesMat);
+  bldgEdges.position.copy(bldg.position);
+  bldgEdges.userData.ch = 0;
+  scene.add(bldgEdges);
+
+  var bldgLabel = SceneHelpers.makeLabel('Wohnblock (25 m)', '#a0a0b8', 38, true);
+  bldgLabel.position.set(-0.15, 1.75, 1.3);
+  bldgLabel.userData.ch = 0;
+  scene.add(bldgLabel);
+
+  /* ── SOLARPANEL P ── */
+  var pDot = SceneHelpers.makeDot(P, 0x58c4dd, 0.085);
+  pDot.userData.ch = 0;
+  var pLabel = SceneHelpers.makeLabel('P(20 | 5 | 1)', '#58c4dd', 48, true);
+  pLabel.position.copy(P.clone().add(new THREE.Vector3(0.1, 0.3, 0.45)));
+  pLabel.userData.ch = 0;
+  scene.add(pDot); scene.add(pLabel);
+
+  var pDrop = SceneHelpers.makeDashedLine(P, new THREE.Vector3(P.x, P.y, 0), 0x58c4dd, 0.45, 0.1, 0.08);
+  pDrop.userData.ch = 0;
+  scene.add(pDrop);
+
+  /* ── SONNENRICHTUNG v ── */
+  var vNorm = Vs.clone().normalize();
+  var vArrowLen = 1.5;
+  var vArrowStart = P.clone().sub(vNorm.clone().multiplyScalar(vArrowLen));
+  var vArrow = SceneHelpers.makeArrow(vArrowStart, P, 0x83c167, 0.26, 0.1);
+  vArrow.userData.ch = 1;
+  var vLabel = SceneHelpers.makeVecLabel('v', '#83c167', 52, true);
+  vLabel.position.copy(vArrowStart.clone().add(new THREE.Vector3(-0.2, 0.05, 0.3)));
+  vLabel.userData.ch = 1;
+  scene.add(vArrow); scene.add(vLabel);
+
+  /* ── RÜCKVERLÄNGERTER LICHTSTRAHL ── */
+  var rayPS = SceneHelpers.makeLine(P, Send, 0x58c4dd, 0.95);
+  rayPS.material.linewidth = 2;
+  rayPS.userData.ch = 2;
+  scene.add(rayPS);
+
+  var backDir   = Vs.clone().multiplyScalar(-1).normalize();
+  var sunExtEnd = Send.clone().add(backDir.clone().multiplyScalar(1.2));
+  var rayExt    = SceneHelpers.makeDashedLine(Send, sunExtEnd, 0x58c4dd, 0.45, 0.15, 0.1);
+  rayExt.userData.ch = 2;
+  scene.add(rayExt);
+
+  var gLabel = SceneHelpers.makeLabel('g', '#58c4dd', 44, true);
+  var mid = P.clone().add(Send).multiplyScalar(0.5).add(new THREE.Vector3(0.15, 0.5, 0.25));
+  gLabel.position.copy(mid);
+  gLabel.userData.ch = 2;
+  scene.add(gLabel);
+
+  /* ── DURCHSTOSSPUNKT ── */
+  var sDot = SceneHelpers.makeDot(Send, 0x9a72ac, 0.085);
+  sDot.userData.ch = 3;
+  scene.add(sDot);
+  var tLabel = SceneHelpers.makeLabel('t = 20', '#f0c674', 46, true);
+  tLabel.position.copy(Send.clone().add(new THREE.Vector3(-0.3, -0.4, 0.4)));
+  tLabel.userData.ch = 3;
+  scene.add(tLabel);
+
+  /* ── HÖHE z = 61 m ── */
+  var zFoot = new THREE.Vector3(Send.x, Send.y, 0);
+  var zDashed = SceneHelpers.makeDashedLine(zFoot, Send, 0xf0c674, 0.85, 0.16, 0.1);
+  zDashed.userData.ch = 4;
+  scene.add(zDashed);
+  var zFootDot = SceneHelpers.makeDot(zFoot, 0xf0c674, 0.05);
+  zFootDot.userData.ch = 4;
+  scene.add(zFootDot);
+  var zLabel = SceneHelpers.makeLabel('z = 61 m', '#f0c674', 48, true);
+  zLabel.position.set(Send.x + 0.25, Send.y - 0.15, 3.3);
+  zLabel.userData.ch = 4;
+  scene.add(zLabel);
+
+  /* ── DACH-HIGHLIGHT (25 m) ── */
+  var bldgTopA = new THREE.Vector3(0,    -1.5, 2.5);
+  var bldgTopB = new THREE.Vector3(-0.3, -1.5, 2.5);
+  var bldgTopC = new THREE.Vector3(-0.3,  1.5, 2.5);
+  var bldgTopD = new THREE.Vector3(0,     1.5, 2.5);
+  var bldgTop1 = SceneHelpers.makeLine(bldgTopA, bldgTopB, 0xf0c674, 0.95);
+  var bldgTop2 = SceneHelpers.makeLine(bldgTopB, bldgTopC, 0xf0c674, 0.95);
+  var bldgTop3 = SceneHelpers.makeLine(bldgTopC, bldgTopD, 0xf0c674, 0.95);
+  var bldgTop4 = SceneHelpers.makeLine(bldgTopD, bldgTopA, 0xf0c674, 0.95);
+  bldgTop1.material.linewidth = 3; bldgTop1.userData.ch = 5;
+  bldgTop2.material.linewidth = 3; bldgTop2.userData.ch = 5;
+  bldgTop3.material.linewidth = 3; bldgTop3.userData.ch = 5;
+  bldgTop4.material.linewidth = 3; bldgTop4.userData.ch = 5;
+  scene.add(bldgTop1); scene.add(bldgTop2); scene.add(bldgTop3); scene.add(bldgTop4);
+
+  var bldg25Start = new THREE.Vector3(-0.15, -1.85, 0);
+  var bldg25End   = new THREE.Vector3(-0.15, -1.85, 2.5);
+  var bldg25Line  = SceneHelpers.makeDashedLine(bldg25Start, bldg25End, 0xf0c674, 0.9, 0.14, 0.1);
+  bldg25Line.userData.ch = 5;
+  scene.add(bldg25Line);
+
+  var bldg25Label = SceneHelpers.makeLabel('25 m', '#f0c674', 46, true);
+  bldg25Label.position.set(-0.15, -2.2, 1.25);
+  bldg25Label.userData.ch = 5;
+  scene.add(bldg25Label);
+
+  /* ── KAPITEL ── */
+  var COLVEC_V = '<span class="c-green"><span class="colvec"><span class="paren">(</span><span class="cols"><span>1</span><span>0,5</span><span>&minus;3</span></span><span class="paren">)</span></span></span>';
+  var chapters = [
+    {
+      t: 5.5,
+      label: 'Kapitel 1 von 6',
+      title: 'Wohnblock und Solarpanel',
+      desc: 'Der 25 m hohe <b>Wohnblock</b> steht in der <span class="c-purple">y-z-Ebene</span> (x = 0). Das Solarpanel liegt in <span class="c-cyan">P(20 | 5 | 1)</span> &mdash; 20 m vor dem Wohnblock.'
+    },
+    {
+      t: 5.5,
+      label: 'Kapitel 2 von 6',
+      title: 'Richtung der Sonnenstrahlen',
+      desc: 'Alle Sonnenstrahlen verlaufen parallel in Richtung <span class="c-green">v&#8407;</span> = ' + COLVEC_V + '. Einer dieser Strahlen trifft <span class="c-cyan">P</span>.'
+    },
+    {
+      t: 6.0,
+      label: 'Kapitel 3 von 6',
+      title: 'Rückwärts zur Sonne',
+      desc: 'Wir verfolgen den Lichtweg von <span class="c-cyan">P</span> <b>rückwärts</b> Richtung Sonne. Die Gerade: <span class="c-cyan">g</span>: <span class="c-cyan">x&#8407;</span> = <span class="c-cyan">P&#8407;</span> + t&middot;(&minus;<span class="c-green">v&#8407;</span>).'
+    },
+    {
+      t: 5.5,
+      label: 'Kapitel 4 von 6',
+      title: 'Wann trifft die Gerade die y-z-Ebene?',
+      desc: 'Der Wohnblock steht bei <span class="c-purple">x = 0</span>. Aus der x-Zeile: 20 + t&middot;(&minus;1) = 0 &nbsp;&rArr;&nbsp; <span class="c-yellow">t = 20</span>.'
+    },
+    {
+      t: 5.5,
+      label: 'Kapitel 5 von 6',
+      title: 'Höhe z berechnen',
+      desc: 'Mit <span class="c-yellow">t = 20</span> in die z-Zeile: <span class="c-yellow">z</span> = 1 + 20&middot;3 = <span class="c-yellow">61</span>. In 61 m Höhe würde der Strahl die y-z-Ebene durchstoßen.'
+    },
+    {
+      t: 5.5,
+      label: 'Kapitel 6 von 6',
+      title: 'Vergleich &mdash; kein Schatten',
+      desc: '<span class="c-yellow">61 m</span> &gt; <span class="c-yellow">25 m</span>. Der Sonnenstrahl verläuft hoch über dem Dach des Wohnblocks, also liegt <b>P nicht im Schatten</b>. &#x2713;'
+    }
+  ];
+
+  var tl = Timeline.create({ scene: scene, chapters: chapters });
+
+  /* ── RESIZE ── */
+  function resize() {
+    var w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, true);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+
+  /* ── ANIMATION LOOP ── */
+  var lastFrame = performance.now();
+  function loop() {
+    requestAnimationFrame(loop);
+    var now = performance.now();
+    var dt = (now - lastFrame) / 1000;
+    lastFrame = now;
+    if (dt > 0.1) dt = 0.1;
+
+    tl.tick(dt);
+
+    if (camState.autoRotate) {
+      camState.camAzim += dt * 0.1;
+    } else if (now - camState.lastInteract > 3500) {
+      camState.autoRotate = true;
+    }
+    updateCamera();
+
+    renderer.render(scene, camera);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>

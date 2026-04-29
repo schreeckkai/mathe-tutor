@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Laser-Schnittpunkt mit der x-y-Ebene</title>
+<link rel="stylesheet" href="../shared/animation-style.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- Aufgabentext (im Embed-Modus ausgeblendet, weil App ihn schon zeigt) -->
+<div id="task-panel">
+  <div class="head">Aufgabe</div>
+  <div class="body">
+    Auf der Bühne eines Musikfestivals steht ein Laserpointer im Punkt
+    <span class="c-cyan">C(10 | 5 | 10)</span>. Er strahlt in Richtung
+    <span class="c-green">v</span> =
+    <span class="c-green"><span class="colvec"><span class="paren">(</span><span class="cols"><span>1</span><span>0,2</span><span>&minus;2</span></span><span class="paren">)</span></span></span>.
+    Bestimme den Punkt <span class="c-cyan">L</span>, an dem der Laser auf den Boden
+    (<span class="c-purple">x-y-Ebene</span>) trifft.
+  </div>
+</div>
+
+<div id="top-bar">
+  <button id="btn-reset" title="Neu starten">&#8634;</button>
+  <button id="btn-pause" title="Pause">&#10074;&#10074;</button>
+  <div id="timeline"></div>
+</div>
+
+<div id="hint">Klick + Zieh zum Drehen &middot; Scroll zum Zoomen</div>
+
+<div id="info">
+  <div class="label" id="infoLabel">Kapitel 1 von 6</div>
+  <div class="title" id="infoTitle">Die Bühne im Koordinatensystem</div>
+  <div class="desc"  id="infoDesc">&mdash;</div>
+</div>
+
+<div class="tooltip" id="tooltip">
+  <div class="tt-title"></div>
+  <div class="tt-range"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../shared/scene-helpers.js"></script>
+<script src="../shared/timeline.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ── EMBED-MODUS aktivieren (versteckt Task-Panel & Hint) ── */
+  SceneHelpers.applyEmbedMode();
+
+  /* ── REALE WERTE → SKALIERTE SZENE ── */
+  // SCALING: S = 0.4. C(10,5,10)→(4,2,4). L(15,6,0)→(6,2.4,0).
+  var S = 0.4;
+  var C_real = new THREE.Vector3(10, 5, 10);
+  var L_real = new THREE.Vector3(15, 6, 0);
+  var V_real = new THREE.Vector3(1, 0.2, -2);
+  var C  = C_real.clone().multiplyScalar(S);
+  var L  = L_real.clone().multiplyScalar(S);
+  var Vs = V_real.clone().multiplyScalar(S);
+
+  /* ── KAMERA-ZIEL & RENDERER ── */
+  var camTarget = new THREE.Vector3(3.0, 1.2, 2.0);
+  var canvas    = document.getElementById('c');
+  var renderer  = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight, true);
+  renderer.setClearColor(0x000000, 1);
+
+  var scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x000000, 35, 80);
+
+  var camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 200);
+  camera.up.set(0, 0, 1);
+
+  /* ── KAMERA-ZUSTAND (für Orbit-Controls + Auto-Rotation) ── */
+  var camState = {
+    camAzim: Math.PI * 0.28,
+    camElev: Math.PI * 0.32,
+    camR: 22,
+    camRMin: 6,
+    camRMax: 60,
+    lastInteract: 0,
+    autoRotate: true
+  };
+  function updateCamera() {
+    var cx = camState.camR * Math.cos(camState.camElev) * Math.cos(camState.camAzim);
+    var cy = camState.camR * Math.cos(camState.camElev) * Math.sin(camState.camAzim);
+    var cz = camState.camR * Math.sin(camState.camElev);
+    camera.position.set(camTarget.x + cx, camTarget.y + cy, camTarget.z + cz);
+    camera.lookAt(camTarget);
+  }
+  updateCamera();
+  SceneHelpers.makeOrbitControls(canvas, camState);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+
+  /* ── GRUND-RASTER + ACHSEN ── */
+  var grid = new THREE.GridHelper(14, 14, 0x26263d, 0x26263d);
+  grid.rotation.x = Math.PI / 2;
+  grid.material.transparent = true;
+  grid.material.opacity = 0.55;
+  grid.material.userData.maxOp = 0.55;
+  scene.add(grid);
+  scene.add(SceneHelpers.makeAxis(new THREE.Vector3(1, 0, 0), 7.5, 'x'));
+  scene.add(SceneHelpers.makeAxis(new THREE.Vector3(0, 1, 0), 7.5, 'y'));
+  scene.add(SceneHelpers.makeAxis(new THREE.Vector3(0, 0, 1), 5.5, 'z'));
+
+  /* ── SZENEN-OBJEKTE (mit userData.ch = Kapitel-Index, ab dem sichtbar) ── */
+  var floorPatch = SceneHelpers.makeFloorPatch(14, 0x9a72ac, 0.13);
+  floorPatch.userData.ch = 0;
+  scene.add(floorPatch);
+
+  var originDot = SceneHelpers.makeDot(new THREE.Vector3(0, 0, 0), 0x9999b5, 0.05);
+  originDot.userData.ch = 0;
+  var originLabel = SceneHelpers.makeLabel('O', '#9999b5', 44, true);
+  originLabel.position.set(-0.18, -0.22, 0.02);
+  originLabel.userData.ch = 0;
+  scene.add(originDot); scene.add(originLabel);
+
+  var cDot = SceneHelpers.makeDot(C, 0x58c4dd, 0.085);
+  cDot.userData.ch = 0;
+  var cLabel = SceneHelpers.makeLabel('C(10 | 5 | 10)', '#58c4dd', 50, true);
+  cLabel.position.copy(C.clone().add(new THREE.Vector3(0.05, -0.05, 0.42)));
+  cLabel.userData.ch = 0;
+  scene.add(cDot); scene.add(cLabel);
+
+  var dropLine = SceneHelpers.makeDashedLine(C, new THREE.Vector3(C.x, C.y, 0), 0x9a72ac, 0.7, 0.12, 0.08);
+  dropLine.userData.ch = 2;
+  var footDot = SceneHelpers.makeDot(new THREE.Vector3(C.x, C.y, 0), 0x9a72ac, 0.05);
+  footDot.userData.ch = 2;
+  var zLabel = SceneHelpers.makeLabel('z = 10', '#9a72ac', 44, true);
+  zLabel.position.set(C.x + 0.4, C.y + 0.05, C.z / 2);
+  zLabel.userData.ch = 2;
+  scene.add(dropLine); scene.add(footDot); scene.add(zLabel);
+
+  var vNorm = Vs.clone().normalize();
+  var vArrowLen = 1.4;
+  var vArrowEnd = C.clone().add(vNorm.clone().multiplyScalar(vArrowLen));
+  var vArrow = SceneHelpers.makeArrow(C, vArrowEnd, 0x83c167, 0.26, 0.1);
+  vArrow.userData.ch = 1;
+  var vLabel = SceneHelpers.makeLabel('v', '#83c167', 50, true);
+  vLabel.position.copy(C.clone().add(vNorm.clone().multiplyScalar(vArrowLen + 0.35)).add(new THREE.Vector3(0.05, 0.05, 0.18)));
+  vLabel.userData.ch = 1;
+  scene.add(vArrow); scene.add(vLabel);
+
+  var rayDashed = SceneHelpers.makeDashedLine(C, L, 0x58c4dd, 0.6, 0.18, 0.14);
+  rayDashed.userData.ch = 1;
+  scene.add(rayDashed);
+
+  var raySolid = SceneHelpers.makeLine(C, L, 0x58c4dd, 0.95);
+  raySolid.material.linewidth = 2;
+  raySolid.userData.ch = 4;
+  scene.add(raySolid);
+
+  var Lbelow = C.clone().add(Vs.clone().multiplyScalar(7));
+  var rayGhost = SceneHelpers.makeDashedLine(L, Lbelow, 0x555575, 0.35, 0.14, 0.1);
+  rayGhost.userData.ch = 2;
+  scene.add(rayGhost);
+
+  var lDot = SceneHelpers.makeDot(L, 0x58c4dd, 0.085);
+  lDot.userData.ch = 4;
+  var lLabel = SceneHelpers.makeLabel('L(15 | 6 | 0)', '#58c4dd', 52, true);
+  lLabel.position.copy(L.clone().add(new THREE.Vector3(0.1, 0.35, 0.45)));
+  lLabel.userData.ch = 4;
+  scene.add(lDot); scene.add(lLabel);
+
+  var rMid = C.clone().add(L).multiplyScalar(0.5).add(new THREE.Vector3(-0.35, -0.35, 0.2));
+  var rLabel = SceneHelpers.makeLabel('r = 5', '#f0c674', 48, true);
+  rLabel.position.copy(rMid);
+  rLabel.userData.ch = 3;
+  scene.add(rLabel);
+
+  var rHighlight = SceneHelpers.makeLine(C, L, 0xf0c674, 0.85);
+  rHighlight.userData.ch = 3;
+  scene.add(rHighlight);
+
+  var xTick = SceneHelpers.makeLine(new THREE.Vector3(L.x, 0, 0.01), new THREE.Vector3(L.x, L.y, 0.01), 0x58c4dd, 0.7);
+  xTick.userData.ch = 4;
+  var xTickLabel = SceneHelpers.makeLabel('6', '#58c4dd', 40, false);
+  xTickLabel.position.set(L.x + 0.18, L.y / 2, 0.18);
+  xTickLabel.userData.ch = 4;
+  var yTick = SceneHelpers.makeLine(new THREE.Vector3(0, L.y, 0.01), new THREE.Vector3(L.x, L.y, 0.01), 0x58c4dd, 0.7);
+  yTick.userData.ch = 4;
+  var yTickLabel = SceneHelpers.makeLabel('15', '#58c4dd', 40, false);
+  yTickLabel.position.set(L.x / 2, L.y + 0.28, 0.18);
+  yTickLabel.userData.ch = 4;
+  scene.add(xTick); scene.add(xTickLabel); scene.add(yTick); scene.add(yTickLabel);
+
+  /* ── KAPITEL-DEFINITION ── */
+  var COLVEC_V = '<span class="c-green"><span class="colvec"><span class="paren">(</span><span class="cols"><span>1</span><span>0,2</span><span>&minus;2</span></span><span class="paren">)</span></span></span>';
+  var chapters = [
+    {
+      t: 5.0,
+      label: 'Kapitel 1 von 6',
+      title: 'Die Bühne im Koordinatensystem',
+      desc: 'Der Laserpointer steht im Punkt <span class="c-cyan">C(10 | 5 | 10)</span> auf der Bühne. Der Boden ist die <span class="c-purple">x-y-Ebene</span>, also die Fläche mit Höhe null.'
+    },
+    {
+      t: 6.5,
+      label: 'Kapitel 2 von 6',
+      title: 'Geradengleichung aufstellen',
+      desc: 'Der Laserstrahl läuft geradlinig. Als Gerade: <span class="c-cyan">x</span> = <span class="c-cyan">C</span> + r&middot;<span class="c-green">v</span> , &nbsp; mit Richtungsvektor <span class="c-green">v</span> = ' + COLVEC_V + '.'
+    },
+    {
+      t: 5.5,
+      label: 'Kapitel 3 von 6',
+      title: 'Bedingung: z = 0 auf dem Boden',
+      desc: 'Auf dem <span class="c-purple">Boden</span> hat jeder Punkt Höhe null. Wir nutzen nur die <span class="c-purple">z-Zeile</span> der Geradengleichung und setzen sie gleich 0.'
+    },
+    {
+      t: 5.5,
+      label: 'Kapitel 4 von 6',
+      title: 'Parameter r ausrechnen',
+      desc: '10 + <span class="c-yellow">r</span>&middot;(&minus;2) = 0 &nbsp;&rArr;&nbsp; 2<span class="c-yellow">r</span> = 10 &nbsp;&rArr;&nbsp; <span class="c-yellow">r = 5</span>. Wir müssen also genau 5 Schritte in Richtung <span class="c-green">v</span> gehen.'
+    },
+    {
+      t: 6.0,
+      label: 'Kapitel 5 von 6',
+      title: 'Auftreffpunkt L berechnen',
+      desc: '<span class="c-cyan">L</span> = <span class="c-cyan">C</span> + <span class="c-yellow">5</span>&middot;<span class="c-green">v</span> = (10+5&middot;1 | 5+5&middot;0,2 | 10+5&middot;(&minus;2)) = <span class="c-cyan">(15 | 6 | 0)</span>.'
+    },
+    {
+      t: 5.5,
+      label: 'Kapitel 6 von 6',
+      title: 'Ergebnis',
+      desc: 'Der Laser trifft den Boden im Punkt <span class="c-cyan">L(15 | 6 | 0)</span> &mdash; also 15 m in <span class="c-cyan">x</span>-Richtung und 6 m in <span class="c-cyan">y</span>-Richtung vom Ursprung entfernt.'
+    }
+  ];
+
+  /* ── TIMELINE & PLAYBACK starten ── */
+  var tl = Timeline.create({ scene: scene, chapters: chapters });
+
+  /* ── RESIZE ── */
+  function resize() {
+    var w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, true);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+
+  /* ── ANIMATION LOOP ── */
+  var lastFrame = performance.now();
+  function loop() {
+    requestAnimationFrame(loop);
+    var now = performance.now();
+    var dt = (now - lastFrame) / 1000;
+    lastFrame = now;
+    if (dt > 0.1) dt = 0.1;
+
+    tl.tick(dt);
+
+    if (camState.autoRotate) {
+      camState.camAzim += dt * 0.12;
+    } else if (now - camState.lastInteract > 3500) {
+      camState.autoRotate = true;
+    }
+    updateCamera();
+
+    renderer.render(scene, camera);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>

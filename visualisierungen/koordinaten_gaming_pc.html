@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gaming-PC-Gehäuse – Eckpunkte B und F</title>
+<style>
+  :root{
+    --bg:#000000; --fg:#ecebe4; --muted:#8888a0;
+    --blue:#58c4dd; --teal:#83c167; --red:#fc6255;
+    --yellow:#f0c674; --purple:#9a72ac;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;min-height:100vh;overflow:hidden;background:var(--bg);color:var(--fg);
+    font-family:Cambria,Georgia,'Times New Roman',serif;-webkit-font-smoothing:antialiased}
+  #c{position:fixed;top:0;left:0;width:100vw;height:100vh;display:block;z-index:0}
+  .c-cyan{color:var(--blue);font-weight:600}
+  .c-green,.c-teal{color:var(--teal);font-weight:600}
+  .c-yellow{color:var(--yellow);font-weight:600}
+  .c-red{color:var(--red);font-weight:600}
+  .c-purple{color:var(--purple);font-weight:600}
+  .c-muted{color:var(--muted)}
+
+  #task-panel{position:fixed;top:18px;left:18px;width:280px;color:var(--muted);
+    font-size:12.5px;line-height:1.55;z-index:5}
+  #task-panel .lbl{font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--yellow);margin-bottom:8px;font-weight:600}
+  #task-panel p{margin-bottom:6px}
+
+  #info{position:fixed;left:50%;bottom:42px;transform:translateX(-50%);
+    width:min(640px,calc(100% - 40px));text-align:center;z-index:5}
+  #info .lbl{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:8px}
+  #info .title{font-size:16px;color:var(--blue);margin-bottom:8px;font-weight:600;line-height:1.35}
+  #info .desc{font-size:13.5px;color:var(--fg);line-height:1.6;opacity:.95}
+  .formula{display:inline-block;margin-top:6px;font-size:14.5px;font-style:italic;
+    letter-spacing:.02em}
+
+  #top-bar{position:fixed;top:14px;left:50%;transform:translateX(-50%);
+    display:flex;align-items:center;gap:10px;z-index:6}
+  .btn{background:transparent;border:none;color:var(--muted);font-size:13px;
+    font-family:inherit;cursor:pointer;padding:4px 8px;letter-spacing:.04em;
+    transition:color .2s}
+  .btn:hover{color:var(--fg)}
+  #timeline{display:flex;gap:4px;width:380px;height:8px;align-items:stretch}
+  .segment{position:relative;flex:1;height:8px;background:#1a1a28;cursor:pointer;
+    border-radius:2px;overflow:visible}
+  .segment .fill{position:absolute;left:0;top:0;height:100%;background:var(--blue);
+    width:0%;border-radius:2px;transition:none}
+  .segment .num{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    font-size:9.5px;color:var(--muted);pointer-events:none;font-weight:600}
+  .segment.active .num{color:var(--fg)}
+  .segment .ts{position:absolute;left:50%;top:14px;transform:translateX(-50%);
+    font-size:9.5px;color:#555569;pointer-events:none;white-space:nowrap}
+  .segment:hover .tooltip{opacity:1}
+  .tooltip{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+    background:#0d0d18;color:var(--fg);padding:5px 9px;font-size:11px;border-radius:3px;
+    white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
+
+  #hint{position:fixed;top:18px;right:18px;color:var(--muted);font-size:11.5px;
+    text-align:right;line-height:1.5;z-index:5;font-style:italic}
+
+  @media (max-width: 640px){
+    #top-bar{top:12px;gap:6px;max-width:calc(100vw - 16px)}
+    #timeline{width:calc(100vw - 160px);max-width:320px;min-width:160px}
+    .segment .num{font-size:9px}
+    .segment .ts{font-size:8.5px;top:22px}
+    #hint{display:none}
+    #task-panel{display:none}
+    #info{bottom:20px;width:calc(100% - 24px)}
+    #info .title{font-size:14px}
+    #info .desc{font-size:12.5px;line-height:1.5}
+    .formula{font-size:13.5px}
+  }
+  @media (max-width: 380px){
+    #timeline{width:calc(100vw - 130px);min-width:140px}
+    .segment .ts{display:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="600"></canvas>
+
+<div id="task-panel">
+  <div class="lbl">Aufgabe</div>
+  <p>Gaming-PC-Gehäuse als dreieckiges Prisma <i>ABCDEF</i>.</p>
+  <p>Rückseite <i>DEF</i> in der <span class="c-yellow">y-z-Ebene</span> (Wand),
+     Boden <i>ABED</i> in der xy-Ebene (Tisch).</p>
+  <p>Gegeben: <span class="c-cyan">C(40|15|45)</span> und
+     <span class="c-yellow">E(0|30|0)</span>.</p>
+  <p>Gesucht: <span class="c-cyan">F</span> und <span class="c-yellow">B</span>.</p>
+</div>
+
+<div id="hint">Klick + Zieh zum Drehen<br>Scroll zum Zoomen</div>
+
+<div id="top-bar">
+  <button class="btn" id="btn-reset" title="Neu starten">↺</button>
+  <button class="btn" id="btn-pause" title="Pause">⏸</button>
+  <div id="timeline"></div>
+</div>
+
+<div id="info">
+  <div class="lbl" id="infoLabel">Kapitel 1 von 5</div>
+  <div class="title" id="infoTitle">Titel</div>
+  <div class="desc"  id="infoDesc">Beschreibung</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   Setup
+   ============================================================ */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+scene.fog = new THREE.Fog(0x000000, 35, 80);
+
+const renderer = new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth/window.innerHeight, 0.1, 200);
+camera.up.set(0,0,1);
+
+/* World scale: real coords / 10 (so 40 -> 4 units) */
+const S = 0.1;
+
+/* Camera spherical state — target at prism centroid, orbit from upper-front-right */
+const camTarget = new THREE.Vector3(2.0, 1.5, 2.0);
+let camR = 13.5, camTheta = -0.7, camPhi = 1.15; // theta around z, phi from z
+function updateCam(){
+  const x = camTarget.x + camR * Math.sin(camPhi) * Math.cos(camTheta);
+  const y = camTarget.y + camR * Math.sin(camPhi) * Math.sin(camTheta);
+  const z = camTarget.z + camR * Math.cos(camPhi);
+  camera.position.set(x,y,z);
+  camera.lookAt(camTarget);
+}
+updateCam();
+
+/* Resize — let Three.js update the canvas style too, so it fills the viewport */
+function resize(){
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, true);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', resize);
+
+/* Lights */
+scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+const dir = new THREE.DirectionalLight(0xffffff, 0.45);
+dir.position.set(5,5,8);
+scene.add(dir);
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+const COL = {
+  fg:0xecebe4, mut:0x8888a0,
+  blue:0x58c4dd, teal:0x83c167, red:0xfc6255,
+  yellow:0xf0c674, purple:0x9a72ac
+};
+
+function makeLineMat(color, opacity=1){
+  return new THREE.LineBasicMaterial({color, transparent:true, opacity});
+}
+function makeFillMat(color, opacity=0.45){
+  return new THREE.MeshBasicMaterial({color, transparent:true, opacity, side:THREE.DoubleSide,
+    depthWrite:false});
+}
+
+function lineFromPts(pts, mat){
+  const g = new THREE.BufferGeometry().setFromPoints(pts);
+  return new THREE.Line(g, mat);
+}
+
+function dashedLine(p1, p2, color, opacity=0.9){
+  const g = new THREE.BufferGeometry().setFromPoints([p1,p2]);
+  const m = new THREE.LineDashedMaterial({color, transparent:true, opacity,
+    dashSize:0.18, gapSize:0.12});
+  const l = new THREE.Line(g,m);
+  l.computeLineDistances();
+  return l;
+}
+
+function sphereDot(pos, color=0xecebe4, r=0.055){
+  const g = new THREE.SphereGeometry(r,12,12);
+  const m = new THREE.MeshBasicMaterial({color, transparent:true, opacity:1});
+  const s = new THREE.Mesh(g,m);
+  s.position.copy(pos);
+  return s;
+}
+
+function arrow(from, to, color, width=0.05){
+  const dir = new THREE.Vector3().subVectors(to,from);
+  const len = dir.length();
+  const nDir = dir.clone().normalize();
+  const headLen = Math.min(0.38, len*0.22);
+  const headRad = 0.11;
+  const shaftLen = len - headLen;
+  const grp = new THREE.Group();
+  // shaft
+  const shaftG = new THREE.CylinderGeometry(width*0.5, width*0.5, shaftLen, 12);
+  const shaftM = new THREE.MeshBasicMaterial({color, transparent:true, opacity:1});
+  const shaft = new THREE.Mesh(shaftG, shaftM);
+  shaft.position.copy(from).addScaledVector(nDir, shaftLen*0.5);
+  shaft.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), nDir);
+  grp.add(shaft);
+  // head
+  const headG = new THREE.ConeGeometry(headRad, headLen, 16);
+  const head = new THREE.Mesh(headG, shaftM);
+  head.position.copy(from).addScaledVector(nDir, shaftLen + headLen*0.5);
+  head.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), nDir);
+  grp.add(head);
+  return grp;
+}
+
+/* ---- Subscript text rendering ---- */
+function parseSubscripts(text){
+  const out = [];
+  let i = 0;
+  while (i < text.length){
+    const ch = text[i];
+    if (ch === '_'){
+      i++;
+      if (text[i] === '{'){
+        let j = i+1, sub='';
+        while (j < text.length && text[j] !== '}'){ sub += text[j]; j++; }
+        out.push({sub:true,t:sub});
+        i = j+1;
+      } else if (i < text.length){
+        out.push({sub:true,t:text[i]});
+        i++;
+      }
+    } else {
+      out.push({sub:false,t:ch});
+      i++;
+    }
+  }
+  // merge consecutive
+  const merged = [];
+  for (const seg of out){
+    if (merged.length && merged[merged.length-1].sub === seg.sub){
+      merged[merged.length-1].t += seg.t;
+    } else merged.push({...seg});
+  }
+  return merged;
+}
+
+function makeLabel(text, pos, color='#ecebe4', fs=64){
+  const segs = parseSubscripts(text);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  let baseFont = `italic ${fs}px Cambria, Georgia, serif`;
+  let subFont  = `italic ${Math.round(fs*0.62)}px Cambria, Georgia, serif`;
+  // measure
+  let w = 8;
+  for (const seg of segs){
+    ctx.font = seg.sub ? subFont : baseFont;
+    w += ctx.measureText(seg.t).width;
+  }
+  // shrink if too wide
+  let actualFs = fs;
+  while (w > 380 && actualFs > 28){
+    actualFs -= 4;
+    baseFont = `italic ${actualFs}px Cambria, Georgia, serif`;
+    subFont  = `italic ${Math.round(actualFs*0.62)}px Cambria, Georgia, serif`;
+    w = 8;
+    for (const seg of segs){
+      ctx.font = seg.sub ? subFont : baseFont;
+      w += ctx.measureText(seg.t).width;
+    }
+  }
+  canvas.width  = Math.ceil(w + 12);
+  canvas.height = Math.ceil(actualFs * 1.5);
+  // redraw
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = color;
+  let x = 6;
+  const baseY = actualFs;
+  for (const seg of segs){
+    if (seg.sub){
+      ctx.font = subFont;
+      ctx.fillText(seg.t, x, baseY + actualFs*0.18);
+      x += ctx.measureText(seg.t).width;
+    } else {
+      ctx.font = baseFont;
+      ctx.fillText(seg.t, x, baseY);
+      x += ctx.measureText(seg.t).width;
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  const mat = new THREE.SpriteMaterial({map:tex, transparent:true, opacity:1, depthTest:false});
+  const sp = new THREE.Sprite(mat);
+  const scale = actualFs * 0.0055;
+  sp.scale.set((canvas.width/canvas.height)*scale, scale, 1);
+  sp.position.copy(pos);
+  sp.renderOrder = 999;
+  return sp;
+}
+
+/* ============================================================
+   World axes & grid
+   ============================================================ */
+const world = new THREE.Group();
+scene.add(world);
+
+/* Floor grid in xy plane (z=0). Helper grid is in xz plane by default; rotate it. */
+const grid = new THREE.GridHelper(8, 8, 0x26263d, 0x26263d);
+grid.material.transparent = true; grid.material.opacity = 0.6;
+grid.rotation.x = Math.PI/2; // place it in xy plane
+grid.position.set(2.0, 1.5, 0);
+world.add(grid);
+
+/* Axes with labels */
+function makeAxis(dir, len, lbl){
+  const grp = new THREE.Group();
+  const matL = makeLineMat(0x777799, 0.7);
+  const end = new THREE.Vector3().copy(dir).multiplyScalar(len);
+  grp.add(lineFromPts([new THREE.Vector3(0,0,0), end], matL));
+  // tip cone
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.38, 16),
+    new THREE.MeshBasicMaterial({color:0x777799, transparent:true, opacity:0.9}));
+  cone.position.copy(end);
+  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+  grp.add(cone);
+  // label
+  const labPos = end.clone().addScaledVector(dir, 0.45);
+  grp.add(makeLabel(lbl, labPos, '#aaaabf', 56));
+  return grp;
+}
+const axesGrp = new THREE.Group();
+axesGrp.add(makeAxis(new THREE.Vector3(1,0,0), 5.5, 'x'));
+axesGrp.add(makeAxis(new THREE.Vector3(0,1,0), 4.0, 'y'));
+axesGrp.add(makeAxis(new THREE.Vector3(0,0,1), 5.5, 'z'));
+world.add(axesGrp);
+
+/* ============================================================
+   Points (real coordinates, scaled by S)
+   ============================================================ */
+const P = {
+  D: new THREE.Vector3( 0*S,  0*S,  0*S),
+  E: new THREE.Vector3( 0*S, 30*S,  0*S),
+  A: new THREE.Vector3(40*S,  0*S,  0*S),
+  B: new THREE.Vector3(40*S, 30*S,  0*S),
+  F: new THREE.Vector3( 0*S, 15*S, 45*S),
+  C: new THREE.Vector3(40*S, 15*S, 45*S),
+};
+
+/* ============================================================
+   Wall (yz-plane) and floor hint planes
+   ============================================================ */
+const wallGeom = new THREE.PlaneGeometry(4.5, 5.5);
+const wallMat  = new THREE.MeshBasicMaterial({color:0xf0c674, transparent:true,
+  opacity:0.0, side:THREE.DoubleSide, depthWrite:false});
+const wall = new THREE.Mesh(wallGeom, wallMat);
+wall.position.set(0, 2.0, 2.5);
+wall.rotation.y = Math.PI/2;
+world.add(wall);
+
+/* Wall border (yellow) */
+function rectLine(verts, mat){ return lineFromPts([...verts, verts[0]], mat); }
+const wallBorderMat = makeLineMat(COL.yellow, 0);
+const wallBorder = rectLine([
+  new THREE.Vector3(0,0,0), new THREE.Vector3(0,4.0,0),
+  new THREE.Vector3(0,4.0,5.0), new THREE.Vector3(0,0,5.0),
+], wallBorderMat);
+world.add(wallBorder);
+
+/* ============================================================
+   Ghost prism (always faintly visible)
+   ============================================================ */
+const ghostGrp = new THREE.Group();
+world.add(ghostGrp);
+
+const ghostEdgeMat = makeLineMat(0x555575, 0);
+function addGhostEdge(p1,p2){ ghostGrp.add(lineFromPts([p1,p2], ghostEdgeMat.clone())); }
+// back triangle DEF
+addGhostEdge(P.D,P.E); addGhostEdge(P.E,P.F); addGhostEdge(P.F,P.D);
+// front triangle ABC
+addGhostEdge(P.A,P.B); addGhostEdge(P.B,P.C); addGhostEdge(P.C,P.A);
+// connectors
+addGhostEdge(P.D,P.A); addGhostEdge(P.E,P.B); addGhostEdge(P.F,P.C);
+
+/* Ghost faces */
+function triFace(p1,p2,p3,color,opacity){
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([
+    p1.x,p1.y,p1.z, p2.x,p2.y,p2.z, p3.x,p3.y,p3.z
+  ],3));
+  g.computeVertexNormals();
+  return new THREE.Mesh(g, makeFillMat(color, opacity));
+}
+function quadFace(p1,p2,p3,p4,color,opacity){
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([
+    p1.x,p1.y,p1.z, p2.x,p2.y,p2.z, p3.x,p3.y,p3.z,
+    p1.x,p1.y,p1.z, p3.x,p3.y,p3.z, p4.x,p4.y,p4.z
+  ],3));
+  return new THREE.Mesh(g, makeFillMat(color,opacity));
+}
+
+/* Ghost faint fills */
+const ghostBack = triFace(P.D,P.E,P.F, 0x333355, 0);  ghostGrp.add(ghostBack);
+const ghostFront= triFace(P.A,P.B,P.C, 0x333355, 0);  ghostGrp.add(ghostFront);
+const ghostBot  = quadFace(P.A,P.B,P.E,P.D, 0x333355, 0); ghostGrp.add(ghostBot);
+
+/* ============================================================
+   Highlighted layers (per chapter)
+   ============================================================ */
+const ch1Grp = new THREE.Group(); world.add(ch1Grp);
+const ch2Grp = new THREE.Group(); world.add(ch2Grp);
+const ch3Grp = new THREE.Group(); world.add(ch3Grp);
+const ch4Grp = new THREE.Group(); world.add(ch4Grp);
+const ch5Grp = new THREE.Group(); world.add(ch5Grp);
+
+/* --- Ch1: known points C and E --- */
+const dotC = sphereDot(P.C, 0xecebe4); ch1Grp.add(dotC);
+const dotE = sphereDot(P.E, 0xecebe4); ch1Grp.add(dotE);
+const labC = makeLabel('C(40|15|45)',
+  P.C.clone().add(new THREE.Vector3(0.18,-0.05,0.30)), '#58c4dd', 50); ch1Grp.add(labC);
+const labE = makeLabel('E(0|30|0)',
+  P.E.clone().add(new THREE.Vector3(-0.55,0.32,0.18)), '#f0c674', 50); ch1Grp.add(labE);
+
+/* --- Ch2: highlight back face DEF (yellow) on wall, label DEF & wall hint --- */
+const backFace = triFace(P.D,P.E,P.F, COL.yellow, 0); ch2Grp.add(backFace);
+const backEdges = new THREE.Group();
+[[P.D,P.E],[P.E,P.F],[P.F,P.D]].forEach(([a,b])=>{
+  backEdges.add(lineFromPts([a,b], makeLineMat(COL.yellow, 0)));
+});
+ch2Grp.add(backEdges);
+const labRueck = makeLabel('Rückseite DEF (y-z-Ebene)',
+  new THREE.Vector3(0, 1.5, 5.4), '#f0c674', 52); ch2Grp.add(labRueck);
+// known E remains visible (already in ch1)
+const dotD2 = sphereDot(P.D, 0xecebe4); ch2Grp.add(dotD2);
+const labD2 = makeLabel('D',
+  P.D.clone().add(new THREE.Vector3(-0.05,-0.30,0.10)), '#ecebe4', 46); ch2Grp.add(labD2);
+// teal arrow along x-axis to anchor the green "x-Richtung" mention
+const arrXdir = arrow(
+  new THREE.Vector3(0, 1.5, 0.05),
+  new THREE.Vector3(3.6, 1.5, 0.05),
+  COL.teal, 0.045
+);
+arrXdir.traverse(o=>{ if (o.material){ o.material.transparent=true; o.material.opacity=0; }});
+ch2Grp.add(arrXdir);
+const labXdir = makeLabel('Tiefe in x-Richtung',
+  new THREE.Vector3(1.9, 1.7, 0.45), '#83c167', 46); ch2Grp.add(labXdir);
+
+/* --- Ch3: find F (cyan, mirror of C onto back wall) --- */
+const dotF = sphereDot(P.F, 0xecebe4); ch3Grp.add(dotF);
+// dashed connector C -> F (along negative x), teal
+const dashCF = dashedLine(P.C, P.F, COL.teal, 0); ch3Grp.add(dashCF);
+// arrow showing depth direction (teal)
+const arrCF = arrow(
+  P.C.clone().add(new THREE.Vector3(0,0,0.0)),
+  P.F.clone().add(new THREE.Vector3(0,0,0.0)),
+  COL.teal, 0.04
+);
+arrCF.traverse(o=>{ if (o.material){ o.material.transparent=true; o.material.opacity=0; }});
+ch3Grp.add(arrCF);
+const labDepth1 = makeLabel('Tiefe 40 (in x)',
+  new THREE.Vector3(2.0, 1.5, 4.85), '#83c167', 46); ch3Grp.add(labDepth1);
+const labF = makeLabel('F(0|15|45)',
+  P.F.clone().add(new THREE.Vector3(-1.0,-0.05,0.30)), '#58c4dd', 52); ch3Grp.add(labF);
+// front tip C in cyan
+const tipC = sphereDot(P.C, 0x58c4dd, 0.075); ch3Grp.add(tipC);
+const tipF = sphereDot(P.F, 0x58c4dd, 0.075); ch3Grp.add(tipF);
+
+/* --- Ch4: find B (yellow, mirror of E onto front) --- */
+const dotB = sphereDot(P.B, 0xecebe4); ch4Grp.add(dotB);
+const dashEB = dashedLine(P.E, P.B, COL.teal, 0); ch4Grp.add(dashEB);
+const arrEB = arrow(
+  P.E.clone().add(new THREE.Vector3(0,0,0.0)),
+  P.B.clone().add(new THREE.Vector3(0,0,0.0)),
+  COL.teal, 0.04
+);
+arrEB.traverse(o=>{ if (o.material){ o.material.transparent=true; o.material.opacity=0; }});
+ch4Grp.add(arrEB);
+const labDepth2 = makeLabel('Tiefe 40 (in x)',
+  new THREE.Vector3(2.0, 3.05, 0.30), '#83c167', 46); ch4Grp.add(labDepth2);
+const labB = makeLabel('B(40|30|0)',
+  P.B.clone().add(new THREE.Vector3(0.18,0.30,0.20)), '#f0c674', 52); ch4Grp.add(labB);
+// front bottom right B in yellow, back bottom right E in yellow
+const tipB = sphereDot(P.B, 0xf0c674, 0.075); ch4Grp.add(tipB);
+const tipE = sphereDot(P.E, 0xf0c674, 0.075); ch4Grp.add(tipE);
+// also bottom rectangle hint
+const botEdges = new THREE.Group();
+[[P.A,P.B],[P.B,P.E],[P.E,P.D],[P.D,P.A]].forEach(([a,b])=>{
+  botEdges.add(lineFromPts([a,b], makeLineMat(COL.teal, 0)));
+});
+ch4Grp.add(botEdges);
+
+/* --- Ch5: result – full prism highlighted --- */
+const finalEdges = new THREE.Group();
+const finalEdgeMat = makeLineMat(COL.blue, 0);
+[
+  [P.D,P.E],[P.E,P.F],[P.F,P.D],
+  [P.A,P.B],[P.B,P.C],[P.C,P.A],
+  [P.D,P.A],[P.E,P.B],[P.F,P.C]
+].forEach(([a,b])=> finalEdges.add(lineFromPts([a,b], makeLineMat(COL.blue, 0))));
+ch5Grp.add(finalEdges);
+const finalBack  = triFace(P.D,P.E,P.F, COL.yellow, 0); ch5Grp.add(finalBack);
+const finalFront = triFace(P.A,P.B,P.C, COL.blue, 0); ch5Grp.add(finalFront);
+const finalBot   = quadFace(P.A,P.B,P.E,P.D, COL.teal, 0); ch5Grp.add(finalBot);
+
+const finalLabB = makeLabel('B(40|30|0)',
+  P.B.clone().add(new THREE.Vector3(0.20,0.32,0.20)), '#f0c674', 56); ch5Grp.add(finalLabB);
+const finalLabF = makeLabel('F(0|15|45)',
+  P.F.clone().add(new THREE.Vector3(-1.05,-0.05,0.32)), '#58c4dd', 56); ch5Grp.add(finalLabF);
+const finalDotB = sphereDot(P.B, 0xf0c674, 0.085); ch5Grp.add(finalDotB);
+const finalDotF = sphereDot(P.F, 0x58c4dd, 0.085); ch5Grp.add(finalDotF);
+
+/* ============================================================
+   Opacity helpers (fade groups by traversing children)
+   ============================================================ */
+function setGroupOpacity(grp, op){
+  grp.traverse(o=>{
+    if (o.material){
+      const mats = Array.isArray(o.material)? o.material : [o.material];
+      mats.forEach(m=>{
+        if (m.transparent !== undefined){
+          m.transparent = true;
+          m.opacity = op * (m.userData.maxOp ?? 1);
+        }
+      });
+    }
+  });
+}
+
+/* Per-object target opacities — store maxOp once */
+function setMaxOp(obj, val){
+  obj.traverse(o=>{
+    if (o.material){
+      const mats = Array.isArray(o.material)? o.material : [o.material];
+      mats.forEach(m=>{ m.userData.maxOp = val; });
+    }
+  });
+}
+/* Ghost opacities */
+ghostGrp.traverse(o=>{
+  if (o.material){
+    const mats = Array.isArray(o.material)? o.material : [o.material];
+    mats.forEach(m=>{ m.userData.maxOp = 0; }); // we'll set after
+  }
+});
+/* Edges of ghost */
+ghostGrp.children.forEach(ch=>{
+  if (ch.isLine && ch.material){
+    ch.material.userData.maxOp = 0.35;
+  }
+});
+/* Faint faces */
+ghostBack.material.userData.maxOp = 0.08;
+ghostFront.material.userData.maxOp = 0.08;
+ghostBot.material.userData.maxOp = 0.08;
+
+/* Wall border max */
+wallBorder.material.userData.maxOp = 0.55;
+wall.material.userData.maxOp = 0.10;
+
+/* Ch1 max ops */
+dotC.material.userData.maxOp = 1;
+dotE.material.userData.maxOp = 1;
+labC.material.userData.maxOp = 1;
+labE.material.userData.maxOp = 1;
+
+/* Ch2 max ops */
+backFace.material.userData.maxOp = 0.30;
+backEdges.children.forEach(c=>{ c.material.userData.maxOp = 1; });
+labRueck.material.userData.maxOp = 1;
+dotD2.material.userData.maxOp = 1;
+labD2.material.userData.maxOp = 1;
+arrXdir.traverse(o=>{ if (o.material) o.material.userData.maxOp = 0.95; });
+labXdir.material.userData.maxOp = 1;
+
+/* Ch3 max ops */
+dotF.material.userData.maxOp = 1;
+dashCF.material.userData.maxOp = 0.85;
+arrCF.traverse(o=>{ if (o.material) o.material.userData.maxOp = 0.95; });
+labDepth1.material.userData.maxOp = 1;
+labF.material.userData.maxOp = 1;
+tipC.material.userData.maxOp = 1;
+tipF.material.userData.maxOp = 1;
+
+/* Ch4 max ops */
+dotB.material.userData.maxOp = 1;
+dashEB.material.userData.maxOp = 0.85;
+arrEB.traverse(o=>{ if (o.material) o.material.userData.maxOp = 0.95; });
+labDepth2.material.userData.maxOp = 1;
+labB.material.userData.maxOp = 1;
+tipB.material.userData.maxOp = 1;
+tipE.material.userData.maxOp = 1;
+botEdges.children.forEach(c=>{ c.material.userData.maxOp = 0.85; });
+
+/* Ch5 max ops */
+finalEdges.children.forEach(c=>{ c.material.userData.maxOp = 1; });
+finalBack.material.userData.maxOp = 0.30;
+finalFront.material.userData.maxOp = 0.30;
+finalBot.material.userData.maxOp = 0.28;
+finalLabB.material.userData.maxOp = 1;
+finalLabF.material.userData.maxOp = 1;
+finalDotB.material.userData.maxOp = 1;
+finalDotF.material.userData.maxOp = 1;
+
+/* Initial: hide all chapter groups & wall */
+[ch1Grp,ch2Grp,ch3Grp,ch4Grp,ch5Grp].forEach(g=> setGroupOpacity(g,0));
+setGroupOpacity(ghostGrp, 0);
+setGroupOpacity(wall, 0);
+setGroupOpacity(wallBorder, 0);
+
+/* ============================================================
+   Animation system: simple per-object opacity tweens
+   ============================================================ */
+const tweens = [];
+function tween(obj, toOp, dur=0.8, delay=0){
+  const mats = [];
+  obj.traverse?.(o=>{
+    if (o.material){
+      const arr = Array.isArray(o.material)? o.material : [o.material];
+      arr.forEach(m=> mats.push(m));
+    }
+  });
+  if (obj.material) mats.push(obj.material);
+  const start = performance.now()/1000 + delay;
+  const fromOps = mats.map(m=> m.opacity);
+  tweens.push({mats, fromOps, toOp, start, dur});
+}
+
+function tickTweens(){
+  const now = performance.now()/1000;
+  for (let i = tweens.length-1; i >= 0; i--){
+    const t = tweens[i];
+    const k = (now - t.start) / t.dur;
+    if (k < 0) continue;
+    if (k >= 1){
+      t.mats.forEach((m,idx)=> m.opacity = t.toOp * (m.userData.maxOp ?? 1));
+      tweens.splice(i,1);
+    } else {
+      const e = k<0.5 ? 2*k*k : 1 - Math.pow(-2*k+2,2)/2; // easeInOut
+      t.mats.forEach((m,idx)=> {
+        const target = t.toOp * (m.userData.maxOp ?? 1);
+        m.opacity = t.fromOps[idx] + (target - t.fromOps[idx])*e;
+      });
+    }
+  }
+}
+
+function fadeIn(obj, dur=0.7, delay=0){ tween(obj,1,dur,delay); }
+function fadeOut(obj, dur=0.5, delay=0){ tween(obj,0,dur,delay); }
+
+function snap(obj, op){
+  obj.traverse?.(o=>{
+    if (o.material){
+      const arr = Array.isArray(o.material)? o.material : [o.material];
+      arr.forEach(m=> m.opacity = op * (m.userData.maxOp ?? 1));
+    }
+  });
+  if (obj.material) obj.material.opacity = op * (obj.material.userData.maxOp ?? 1);
+}
+
+/* ============================================================
+   Chapters
+   ============================================================ */
+const chapters = [
+  {
+    t: 6.5,
+    label: 'Kapitel 1 von 5',
+    title: 'Einordnung im Koordinatensystem',
+    desc: 'Das Gehäuse steht so, dass die <span class="c-yellow">Rückseite</span> an der Wand (y-z-Ebene) liegt und der Boden auf dem Tisch (xy-Ebene). Bekannt sind die <span class="c-cyan">vordere Spitze C(40|15|45)</span> und der <span class="c-yellow">hintere rechte Bodenpunkt E(0|30|0)</span>.',
+    enter(){
+      fadeIn(ghostGrp, 1.2);
+      fadeIn(ch1Grp, 1.0, 0.3);
+    }
+  },
+  {
+    t: 6.0,
+    label: 'Kapitel 2 von 5',
+    title: 'Die <span class="c-yellow">Rückseite DEF</span> liegt in der y-z-Ebene',
+    desc: 'Alle Punkte der Rückseite haben <span class="c-yellow">x = 0</span>. Die Wand liegt direkt in der y-z-Ebene — Tiefe nach vorn wird in <span class="c-green">x-Richtung</span> abgetragen.',
+    enter(){
+      fadeIn(wall, 1.0);
+      fadeIn(wallBorder, 1.0);
+      fadeIn(ch2Grp, 1.0, 0.2);
+    },
+    exit(){
+      fadeOut(wall, 0.8);
+      // keep ch2 visible as context
+    }
+  },
+  {
+    t: 6.5,
+    label: 'Kapitel 3 von 5',
+    title: 'Punkt <span class="c-cyan">F</span> – die hintere Spitze',
+    desc: '<span class="c-cyan">F</span> liegt parallel hinter der vorderen Spitze <span class="c-cyan">C</span>. Da F auf der Rückseite liegt, ist <span class="c-yellow">F<sub>x</sub> = 0</span>; Höhe und Breite sind identisch zu C: <span class="c-cyan">F<sub>y</sub> = 15</span>, <span class="c-cyan">F<sub>z</sub> = 45</span> ⇒ <span class="c-cyan">F(0|15|45)</span>.',
+    enter(){
+      fadeIn(ch3Grp, 1.0);
+    }
+  },
+  {
+    t: 6.5,
+    label: 'Kapitel 4 von 5',
+    title: 'Punkt <span class="c-yellow">B</span> – der vordere Bodenpunkt',
+    desc: '<span class="c-yellow">B</span> liegt parallel vor dem hinteren Eckpunkt <span class="c-yellow">E</span>. Die Tiefe lesen wir an C ab: <span class="c-green">B<sub>x</sub> = 40</span>. Breite und Höhe von E übernehmen wir: <span class="c-yellow">B<sub>y</sub> = 30</span>, <span class="c-yellow">B<sub>z</sub> = 0</span> ⇒ <span class="c-yellow">B(40|30|0)</span>.',
+    enter(){
+      fadeIn(ch4Grp, 1.0);
+    }
+  },
+  {
+    t: 6.0,
+    label: 'Kapitel 5 von 5',
+    title: 'Ergebnis: das vollständige Prisma',
+    desc: '<span class="formula"><span class="c-yellow">B(40 | 30 | 0)</span> &nbsp; und &nbsp; <span class="c-cyan">F(0 | 15 | 45)</span></span><br><span class="c-muted" style="font-size:12px">Logisch übertragen: gleiche y- und z-Werte, x = 0 hinten und x = 40 vorn.</span>',
+    enter(){
+      // dim earlier highlight groups so final stands out
+      fadeOut(ch3Grp, 0.7);
+      fadeOut(ch4Grp, 0.7);
+      fadeOut(ch2Grp, 0.7);
+      fadeIn(ch5Grp, 1.0, 0.3);
+    }
+  }
+];
+
+/* Cumulative end-state for seeking */
+function setEndState(i){
+  // i = -1 means hide everything
+  // hide all groups first
+  [ghostGrp, wall, wallBorder, ch1Grp, ch2Grp, ch3Grp, ch4Grp, ch5Grp].forEach(g=> snap(g,0));
+  // clear pending tweens
+  tweens.length = 0;
+  if (i < 0) return;
+  // ch1 onwards
+  if (i >= 0){ snap(ghostGrp,1); snap(ch1Grp,1); }
+  if (i >= 1){ snap(wallBorder,1); snap(ch2Grp,1); /* wall fades out at exit, leave hidden */ }
+  if (i >= 2){ snap(ch3Grp,1); }
+  if (i >= 3){ snap(ch4Grp,1); }
+  if (i >= 4){
+    // ch5 dims previous chapters
+    snap(ch3Grp,0); snap(ch4Grp,0); snap(ch2Grp,0);
+    snap(ch5Grp,1);
+  }
+}
+
+/* ============================================================
+   Timeline & playback
+   ============================================================ */
+const timelineEl = document.getElementById('timeline');
+const segs = [];
+let totalDur = 0;
+chapters.forEach((ch,i)=>{
+  totalDur += ch.t;
+  const el = document.createElement('div');
+  el.className = 'segment';
+  el.style.flex = ch.t;
+  el.innerHTML = `
+    <div class="fill"></div>
+    <div class="num">${i+1}</div>
+    <div class="ts"></div>
+    <div class="tooltip"></div>
+  `;
+  el.addEventListener('click', ()=> seekTo(i));
+  timelineEl.appendChild(el);
+  segs.push(el);
+});
+
+/* Timestamps */
+function fmt(t){
+  const m = Math.floor(t/60), s = Math.floor(t%60);
+  return `${m}:${s.toString().padStart(2,'0')}`;
+}
+let acc = 0;
+chapters.forEach((ch,i)=>{
+  segs[i].querySelector('.ts').textContent = fmt(acc);
+  segs[i].querySelector('.tooltip').textContent =
+    `Kap. ${i+1}: ${ch.title.replace(/<[^>]*>/g,'')} — ${ch.t.toFixed(0)}s`;
+  acc += ch.t;
+});
+
+const infoLabel = document.getElementById('infoLabel');
+const infoTitle = document.getElementById('infoTitle');
+const infoDesc  = document.getElementById('infoDesc');
+
+let currentChapter = -1;
+let chapterStartT = 0;
+let isPaused = false;
+let elapsedAtPause = 0;
+let endPause = false; // brief pause at end
+let endPauseStart = 0;
+
+function enterChapter(i){
+  const ch = chapters[i];
+  currentChapter = i;
+  chapterStartT = performance.now()/1000;
+  infoLabel.textContent = ch.label;
+  infoTitle.innerHTML = ch.title;
+  infoDesc.innerHTML  = ch.desc;
+  segs.forEach((el,k)=>{
+    el.classList.toggle('active', k === i);
+    if (k < i) el.querySelector('.fill').style.width = '100%';
+    else if (k > i) el.querySelector('.fill').style.width = '0%';
+  });
+  ch.enter && ch.enter();
+}
+
+function seekTo(i){
+  if (i < 0 || i >= chapters.length) return;
+  setEndState(i-1);
+  // run exit hooks in between if needed (skip; setEndState is authoritative)
+  enterChapter(i);
+  isPaused = false;
+}
+
+function nextChapter(){
+  const ch = chapters[currentChapter];
+  ch.exit && ch.exit();
+  if (currentChapter + 1 >= chapters.length){
+    // end pause
+    endPause = true;
+    endPauseStart = performance.now()/1000;
+  } else {
+    enterChapter(currentChapter + 1);
+  }
+}
+
+/* Top-bar buttons */
+document.getElementById('btn-reset').addEventListener('click', ()=> seekTo(0));
+document.getElementById('btn-pause').addEventListener('click', (e)=>{
+  isPaused = !isPaused;
+  e.target.textContent = isPaused ? '▶' : '⏸';
+});
+
+/* ============================================================
+   Camera interaction
+   ============================================================ */
+let isDragging = false;
+let lastX = 0, lastY = 0;
+let lastInteractionT = performance.now()/1000;
+let pinchDist = 0;
+
+const canvas = document.getElementById('c');
+canvas.addEventListener('mousedown', e=>{ isDragging=true; lastX=e.clientX; lastY=e.clientY; });
+window.addEventListener('mouseup',   ()=> isDragging=false);
+window.addEventListener('mousemove', e=>{
+  if (!isDragging) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  camTheta -= dx*0.005;
+  camPhi   = Math.max(0.15, Math.min(Math.PI-0.15, camPhi - dy*0.005));
+  lastX=e.clientX; lastY=e.clientY;
+  lastInteractionT = performance.now()/1000;
+  updateCam();
+});
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  camR = Math.max(5, Math.min(28, camR * (1 + e.deltaY*0.001)));
+  lastInteractionT = performance.now()/1000;
+  updateCam();
+}, {passive:false});
+
+canvas.addEventListener('touchstart', e=>{
+  if (e.touches.length === 1){
+    isDragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+  } else if (e.touches.length === 2){
+    isDragging=false;
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    pinchDist = Math.hypot(dx,dy);
+  }
+  lastInteractionT = performance.now()/1000;
+}, {passive:false});
+
+canvas.addEventListener('touchmove', e=>{
+  e.preventDefault();
+  if (e.touches.length === 1 && isDragging){
+    const dx = e.touches[0].clientX - lastX, dy = e.touches[0].clientY - lastY;
+    camTheta -= dx*0.005;
+    camPhi = Math.max(0.15, Math.min(Math.PI-0.15, camPhi - dy*0.005));
+    lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+    updateCam();
+  } else if (e.touches.length === 2){
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const d = Math.hypot(dx,dy);
+    if (pinchDist > 0){
+      const ratio = pinchDist / d;
+      camR = Math.max(5, Math.min(28, camR * ratio));
+      updateCam();
+    }
+    pinchDist = d;
+  }
+  lastInteractionT = performance.now()/1000;
+}, {passive:false});
+
+canvas.addEventListener('touchend', ()=>{ isDragging=false; pinchDist=0; });
+
+/* ============================================================
+   Main loop
+   ============================================================ */
+function animate(){
+  requestAnimationFrame(animate);
+  const now = performance.now()/1000;
+
+  // Auto-rotation if no recent interaction
+  if (now - lastInteractionT > 3.5 && !isDragging){
+    camTheta -= 0.0015;
+    updateCam();
+  }
+
+  // Chapter progression
+  if (!isPaused){
+    if (endPause){
+      if (now - endPauseStart > 2.5){
+        endPause = false;
+        seekTo(0);
+      }
+    } else if (currentChapter >= 0){
+      const ch = chapters[currentChapter];
+      const elapsed = now - chapterStartT;
+      const k = Math.min(1, elapsed / ch.t);
+      segs[currentChapter].querySelector('.fill').style.width = (k*100).toFixed(1)+'%';
+      if (elapsed >= ch.t){
+        nextChapter();
+      }
+    }
+  }
+
+  tickTweens();
+  renderer.render(scene, camera);
+}
+
+/* Start */
+setEndState(-1);
+seekTo(0);
+animate();
+</script>
+</body>
+</html>

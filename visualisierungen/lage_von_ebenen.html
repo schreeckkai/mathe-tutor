@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Solarmodul – Ebene E: 15y − 7z = 0</title>
+<style>
+:root {
+  --bg: #000000;
+  --fg: #ecebe4;
+  --muted: #8888a0;
+  --blue: #58c4dd;
+  --teal: #83c167;
+  --red: #fc6255;
+  --yellow: #f0c674;
+  --purple: #9a72ac;
+}
+* { box-sizing: border-box; }
+html, body { width:100%; height:100%; margin:0; overflow:hidden; background: var(--bg); color: var(--fg); font-family: 'Cambria', Georgia, serif; }
+#c { position:fixed; top:0; left:0; width:100vw; height:100vh; display:block; }
+
+#top-bar {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+  max-width: calc(100vw - 32px);
+}
+#top-bar button {
+  background: transparent;
+  border: 1px solid #2a2a3e;
+  color: var(--fg);
+  padding: 6px 11px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+#top-bar button:hover { border-color: var(--muted); }
+
+#timeline {
+  display: flex;
+  width: 480px;
+  max-width: 480px;
+  height: 30px;
+  gap: 3px;
+  position: relative;
+}
+.segment {
+  flex: 1;
+  background: #1a1a28;
+  position: relative;
+  cursor: pointer;
+  border-radius: 2px;
+  height: 16px;
+  margin-top: 7px;
+}
+.segment .fill {
+  height: 100%;
+  background: var(--blue);
+  width: 0%;
+  border-radius: 2px;
+  transition: width 0.05s linear;
+}
+.segment .num {
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: var(--muted);
+  pointer-events: none;
+  font-family: 'Cambria', Georgia, serif;
+  font-style: italic;
+}
+.segment .ts {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9.5px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.segment .tooltip {
+  position: absolute;
+  bottom: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0a0a14;
+  border: 1px solid #2a2a3e;
+  padding: 6px 9px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--fg);
+  display: none;
+  pointer-events: none;
+  z-index: 20;
+}
+.segment:hover .tooltip { display: block; }
+
+#hint {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+  z-index: 10;
+  max-width: 230px;
+  text-align: right;
+}
+
+#task-panel {
+  position: fixed;
+  top: 60px;
+  left: 18px;
+  width: 280px;
+  z-index: 10;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+#task-panel .header {
+  color: var(--yellow);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  font-style: normal;
+  font-weight: 600;
+}
+#task-panel .body { font-style: italic; }
+
+#info {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 640px;
+  max-width: calc(100vw - 32px);
+  text-align: center;
+  z-index: 10;
+}
+#info .label {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  font-style: normal;
+}
+#info .title {
+  color: var(--blue);
+  font-size: 16px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-style: italic;
+}
+#info .desc {
+  color: var(--fg);
+  font-size: 13.5px;
+  line-height: 1.6;
+  font-style: italic;
+}
+.formula {
+  font-family: 'Cambria', Georgia, serif;
+  font-size: 14.5px;
+  font-style: italic;
+  color: var(--fg);
+}
+.c-cyan   { color: var(--blue);   font-weight: 600; }
+.c-green  { color: var(--teal);   font-weight: 600; }
+.c-teal   { color: var(--teal);   font-weight: 600; }
+.c-yellow { color: var(--yellow); font-weight: 600; }
+.c-red    { color: var(--red);    font-weight: 600; }
+.c-purple { color: var(--purple); font-weight: 600; }
+
+@media (max-width: 640px) {
+  #top-bar { top: 12px; gap: 6px; max-width: calc(100vw - 16px); }
+  #timeline { width: calc(100vw - 160px); max-width: 320px; min-width: 160px; }
+  .segment .num { font-size: 9px; }
+  .segment .ts  { font-size: 8.5px; top: 22px; }
+  #hint { display: none; }
+  #task-panel { display: none; }
+  #info { bottom: 20px; width: calc(100% - 24px); }
+  #info .title { font-size: 14px; }
+  #info .desc  { font-size: 12.5px; line-height: 1.5; }
+  .formula { font-size: 13.5px; }
+}
+@media (max-width: 380px) {
+  #timeline { width: calc(100vw - 130px); min-width: 140px; }
+  .segment .ts { display: none; }
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="top-bar">
+  <button id="restart-btn">↺ Neu</button>
+  <button id="pause-btn">⏸ Pause</button>
+  <div id="timeline"></div>
+</div>
+
+<div id="hint">Klick + Zieh zum Drehen · Scroll zum Zoomen</div>
+
+<div id="task-panel">
+  <div class="header">Aufgabe</div>
+  <div class="body">
+    Solarmodul auf Flachdach als Ebene <span class="c-cyan">E: 15y − 7z = 0</span>.<br><br>
+    Beschreibe geometrisch:<br>
+    (1) Variable <span class="c-green">x</span> fehlt.<br>
+    (2) Rechte Seite ist <span class="c-yellow">0</span>.
+  </div>
+</div>
+
+<div id="info">
+  <div class="label" id="info-label">Kapitel 1 von 7</div>
+  <div class="title" id="info-title">…</div>
+  <div class="desc" id="info-desc">…</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ============ Scene Setup ============
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+scene.fog = new THREE.Fog(0x000000, 38, 90);
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight, true);
+
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.up.set(0, 0, 1);
+
+const camTarget = new THREE.Vector3(0, 0, 0.4);
+let camR = 16.5;
+let camTheta = -Math.PI / 3.6;
+let camPhi = Math.PI / 2.7;
+
+function updateCamera() {
+  const x = camR * Math.sin(camPhi) * Math.cos(camTheta);
+  const y = camR * Math.sin(camPhi) * Math.sin(camTheta);
+  const z = camR * Math.cos(camPhi);
+  camera.position.set(x + camTarget.x, y + camTarget.y, z + camTarget.z);
+  camera.lookAt(camTarget);
+}
+updateCamera();
+
+// ============ Helpers ============
+function parseSubscripts(text) {
+  const tokens = [];
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === '_') {
+      i++;
+      if (text[i] === '{') {
+        i++;
+        let s = '';
+        while (i < text.length && text[i] !== '}') { s += text[i]; i++; }
+        i++;
+        tokens.push({text: s, sub: true});
+      } else {
+        tokens.push({text: text[i], sub: true});
+        i++;
+      }
+    } else {
+      let s = '';
+      while (i < text.length && text[i] !== '_') { s += text[i]; i++; }
+      tokens.push({text: s, sub: false});
+    }
+  }
+  return tokens;
+}
+
+function makeLabel(text, color, fontSize) {
+  if (fontSize === undefined) fontSize = 50;
+  const cv = document.createElement('canvas');
+  const ctx = cv.getContext('2d');
+  const tokens = parseSubscripts(text);
+  let baseFs = fontSize;
+  let subFs = baseFs * 0.62;
+
+  ctx.font = `italic 600 ${baseFs}px Cambria, Georgia, serif`;
+  let totalWidth = 0;
+  for (const t of tokens) {
+    ctx.font = `italic 600 ${t.sub ? subFs : baseFs}px Cambria, Georgia, serif`;
+    totalWidth += ctx.measureText(t.text).width;
+  }
+
+  let actualFs = baseFs;
+  if (totalWidth > 700) {
+    const scale = 700 / totalWidth;
+    actualFs = baseFs * scale;
+    baseFs *= scale;
+    subFs *= scale;
+    totalWidth = 700;
+  }
+  const subOffset = baseFs * 0.18;
+
+  cv.width = Math.max(64, Math.ceil(totalWidth + 40));
+  cv.height = Math.ceil(baseFs * 1.7);
+
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = color;
+  ctx.textBaseline = 'middle';
+
+  let x = 20;
+  const baseY = cv.height / 2;
+  for (const t of tokens) {
+    const fs = t.sub ? subFs : baseFs;
+    ctx.font = `italic 600 ${fs}px Cambria, Georgia, serif`;
+    const y = t.sub ? baseY + subOffset : baseY;
+    ctx.fillText(t.text, x, y);
+    x += ctx.measureText(t.text).width;
+  }
+
+  const tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  mat.userData.maxOp = 1;
+  const sprite = new THREE.Sprite(mat);
+  const scaleY = actualFs * 0.006;
+  sprite.scale.set(scaleY * (cv.width / cv.height), scaleY, 1);
+  return sprite;
+}
+
+function setGroupOpacity(group, op) {
+  group.traverse(child => {
+    if (child.material) {
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach(m => {
+        m.transparent = true;
+        const max = m.userData && m.userData.maxOp !== undefined ? m.userData.maxOp : 1;
+        m.opacity = op * max;
+      });
+    }
+  });
+}
+
+function setMatOpacity(mat, op) {
+  mat.transparent = true;
+  const max = mat.userData && mat.userData.maxOp !== undefined ? mat.userData.maxOp : 1;
+  mat.opacity = op * max;
+}
+
+// ============ Build Scene ============
+const root = new THREE.Group();
+scene.add(root);
+
+// Grid (xy plane), size 1.3 * longest object axis (~6) ≈ 8
+const grid = new THREE.GridHelper(8, 16, 0x26263d, 0x26263d);
+grid.rotation.x = Math.PI / 2;
+grid.material.transparent = true;
+grid.material.opacity = 0;
+grid.material.userData = { maxOp: 0.6 };
+root.add(grid);
+
+// Axes
+function makeAxis(dir, length, label, labelOffset) {
+  const g = new THREE.Group();
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x777799, transparent: true, opacity: 0.7 });
+  lineMat.userData = { maxOp: 0.7 };
+  const lineGeom = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0),
+    dir.clone().multiplyScalar(length)
+  ]);
+  g.add(new THREE.Line(lineGeom, lineMat));
+
+  const coneMat = new THREE.MeshBasicMaterial({ color: 0x777799, transparent: true, opacity: 0.7 });
+  coneMat.userData = { maxOp: 0.7 };
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.38, 16), coneMat);
+  cone.position.copy(dir.clone().multiplyScalar(length));
+  const up = new THREE.Vector3(0, 1, 0);
+  const axis = new THREE.Vector3().crossVectors(up, dir).normalize();
+  const angle = Math.acos(Math.max(-1, Math.min(1, up.dot(dir))));
+  if (axis.length() > 0.01) cone.setRotationFromAxisAngle(axis, angle);
+  g.add(cone);
+
+  if (label) {
+    const lbl = makeLabel(label, '#bbbbcc', 44);
+    lbl.position.copy(dir.clone().multiplyScalar(length).add(labelOffset));
+    g.add(lbl);
+  }
+  return g;
+}
+
+const xAxis = makeAxis(new THREE.Vector3(1, 0, 0), 4.5, 'x', new THREE.Vector3(0.4, 0, 0));
+const yAxis = makeAxis(new THREE.Vector3(0, 1, 0), 4.5, 'y', new THREE.Vector3(0, 0.4, 0));
+const zAxis = makeAxis(new THREE.Vector3(0, 0, 1), 4.5, 'z', new THREE.Vector3(0, 0, 0.4));
+root.add(xAxis); root.add(yAxis); root.add(zAxis);
+
+// ----- The plane E: 15y - 7z = 0 -----
+// Tangent vectors: t1 = (1,0,0), t2 = (0, 7, 15)/sqrt(274)
+const tiltLen = Math.sqrt(274);
+const t1 = new THREE.Vector3(1, 0, 0);
+const t2 = new THREE.Vector3(0, 7 / tiltLen, 15 / tiltLen);
+
+const planeHalfX = 3.0;
+const planeHalfT = 2.4;
+
+const planeGroup = new THREE.Group();
+
+// Faint plane fill
+const desiredNormal = new THREE.Vector3(0, 15, -7).normalize();
+const defaultNormal = new THREE.Vector3(0, 0, 1);
+const rotAxis = new THREE.Vector3().crossVectors(defaultNormal, desiredNormal).normalize();
+const rotAngle = Math.acos(Math.max(-1, Math.min(1, defaultNormal.dot(desiredNormal))));
+
+const planeMat = new THREE.MeshBasicMaterial({
+  color: 0x58c4dd,
+  transparent: true,
+  opacity: 0,
+  side: THREE.DoubleSide,
+  depthWrite: false
+});
+planeMat.userData = { maxOp: 0.16 };
+const planeMesh = new THREE.Mesh(new THREE.PlaneGeometry(planeHalfX * 2, planeHalfT * 2), planeMat);
+planeMesh.setRotationFromAxisAngle(rotAxis, rotAngle);
+planeGroup.add(planeMesh);
+
+// Plane outline (parallelogram)
+const corners = [
+  t1.clone().multiplyScalar( planeHalfX).add(t2.clone().multiplyScalar( planeHalfT)),
+  t1.clone().multiplyScalar(-planeHalfX).add(t2.clone().multiplyScalar( planeHalfT)),
+  t1.clone().multiplyScalar(-planeHalfX).add(t2.clone().multiplyScalar(-planeHalfT)),
+  t1.clone().multiplyScalar( planeHalfX).add(t2.clone().multiplyScalar(-planeHalfT)),
+  t1.clone().multiplyScalar( planeHalfX).add(t2.clone().multiplyScalar( planeHalfT)),
+];
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x58c4dd, transparent: true, opacity: 0 });
+edgeMat.userData = { maxOp: 0.85 };
+const edgeLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(corners), edgeMat);
+planeGroup.add(edgeLine);
+
+const eLabel = makeLabel('E', '#58c4dd', 56);
+eLabel.position.copy(t1.clone().multiplyScalar( planeHalfX * 0.82).add(t2.clone().multiplyScalar( planeHalfT * 0.82)));
+planeGroup.add(eLabel);
+
+root.add(planeGroup);
+
+// ----- Solar module (rectangle on the plane) -----
+const modGroup = new THREE.Group();
+const modHalfX = 1.8;
+const modHalfT = 1.15;
+const modCorners = [
+  t1.clone().multiplyScalar( modHalfX).add(t2.clone().multiplyScalar( modHalfT)),
+  t1.clone().multiplyScalar(-modHalfX).add(t2.clone().multiplyScalar( modHalfT)),
+  t1.clone().multiplyScalar(-modHalfX).add(t2.clone().multiplyScalar(-modHalfT)),
+  t1.clone().multiplyScalar( modHalfX).add(t2.clone().multiplyScalar(-modHalfT)),
+];
+const modMat = new THREE.MeshBasicMaterial({
+  color: 0x58c4dd,
+  transparent: true,
+  opacity: 0,
+  side: THREE.DoubleSide,
+  depthWrite: false
+});
+modMat.userData = { maxOp: 0.42 };
+const modMesh = new THREE.Mesh(new THREE.PlaneGeometry(modHalfX * 2, modHalfT * 2), modMat);
+modMesh.setRotationFromAxisAngle(rotAxis, rotAngle);
+modGroup.add(modMesh);
+
+// Module outline
+const modEdgePts = [...modCorners, modCorners[0]];
+const modEdgeMat = new THREE.LineBasicMaterial({ color: 0x58c4dd, transparent: true, opacity: 0 });
+modEdgeMat.userData = { maxOp: 1 };
+modGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(modEdgePts), modEdgeMat));
+
+// "Solarmodul" label, slightly above the panel
+const modLabel = makeLabel('Solarmodul', '#58c4dd', 38);
+const modLabelPos = t1.clone().multiplyScalar(0).add(t2.clone().multiplyScalar(modHalfT)).add(new THREE.Vector3(0, -0.18, 0.42));
+modLabel.position.copy(modLabelPos);
+modGroup.add(modLabel);
+
+root.add(modGroup);
+
+// ----- x-axis HIGHLIGHT (green) - shows that x is "free" -----
+const xHighlightGroup = new THREE.Group();
+
+const xHighMat = new THREE.LineBasicMaterial({ color: 0x83c167, transparent: true, opacity: 0, linewidth: 2 });
+xHighMat.userData = { maxOp: 1 };
+const xHighGeom = new THREE.BufferGeometry().setFromPoints([
+  new THREE.Vector3(-3.5, 0, 0),
+  new THREE.Vector3( 3.5, 0, 0)
+]);
+xHighlightGroup.add(new THREE.Line(xHighGeom, xHighMat));
+
+function makeArrow(start, end, color) {
+  const g = new THREE.Group();
+  const dir = new THREE.Vector3().subVectors(end, start);
+  const dirN = dir.clone().normalize();
+  const lineMat2 = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0 });
+  lineMat2.userData = { maxOp: 1 };
+  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), lineMat2));
+
+  const coneMat2 = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0 });
+  coneMat2.userData = { maxOp: 1 };
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.3, 16), coneMat2);
+  cone.position.copy(end);
+  const up = new THREE.Vector3(0, 1, 0);
+  const axis = new THREE.Vector3().crossVectors(up, dirN).normalize();
+  const angle = Math.acos(Math.max(-1, Math.min(1, up.dot(dirN))));
+  if (axis.length() > 0.01) cone.setRotationFromAxisAngle(axis, angle);
+  g.add(cone);
+  return g;
+}
+
+xHighlightGroup.add(makeArrow(new THREE.Vector3(0.3, 0, 0),  new THREE.Vector3( 2.8, 0, 0), 0x83c167));
+xHighlightGroup.add(makeArrow(new THREE.Vector3(-0.3, 0, 0), new THREE.Vector3(-2.8, 0, 0), 0x83c167));
+
+const xAxisLabel = makeLabel('frei in x', '#83c167', 40);
+xAxisLabel.position.set(2.4, 0.0, 0.45);
+xHighlightGroup.add(xAxisLabel);
+
+root.add(xHighlightGroup);
+
+// ----- Moving green dot along x (in the plane) -----
+const movingDotMat = new THREE.MeshBasicMaterial({ color: 0x83c167, transparent: true, opacity: 0 });
+movingDotMat.userData = { maxOp: 1 };
+const movingDot = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 16), movingDotMat);
+movingDot.position.set(0, 0, 0);
+root.add(movingDot);
+
+// ----- Origin point (yellow) -----
+const originDotMat = new THREE.MeshBasicMaterial({ color: 0xf0c674, transparent: true, opacity: 0 });
+originDotMat.userData = { maxOp: 1 };
+const originDot = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 16), originDotMat);
+originDot.position.set(0, 0, 0);
+root.add(originDot);
+
+const originCoords = makeLabel('(0|0|0)', '#f0c674', 42);
+originCoords.material.opacity = 0;
+originCoords.position.set(0.55, -0.5, 0.42);
+root.add(originCoords);
+
+// Origin highlight ring (yellow) - faces camera
+const ringMat = new THREE.MeshBasicMaterial({
+  color: 0xf0c674,
+  transparent: true,
+  opacity: 0,
+  side: THREE.DoubleSide,
+  depthWrite: false
+});
+ringMat.userData = { maxOp: 0.9 };
+const originRing = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.24, 32), ringMat);
+originRing.position.set(0, 0, 0);
+root.add(originRing);
+
+// ----- Hide everything initially -----
+function hideAll() {
+  setGroupOpacity(xAxis, 0);
+  setGroupOpacity(yAxis, 0);
+  setGroupOpacity(zAxis, 0);
+  setMatOpacity(grid.material, 0);
+  setGroupOpacity(planeGroup, 0);
+  setGroupOpacity(modGroup, 0);
+  setGroupOpacity(xHighlightGroup, 0);
+  setMatOpacity(movingDotMat, 0);
+  setMatOpacity(originDotMat, 0);
+  setMatOpacity(originCoords.material, 0);
+  setMatOpacity(ringMat, 0);
+}
+hideAll();
+
+// ============ Fade controllers ============
+const clock = new THREE.Clock();
+let activeFades = [];
+
+function fadeInGroup(grp, duration) {
+  activeFades = activeFades.filter(f => f.target !== grp);
+  activeFades.push({ target: grp, kind: 'group', dir: 1, start: clock.getElapsedTime(), duration });
+}
+function fadeInMat(mat, duration) {
+  activeFades = activeFades.filter(f => f.target !== mat);
+  activeFades.push({ target: mat, kind: 'mat', dir: 1, start: clock.getElapsedTime(), duration });
+}
+
+function updateFades(now) {
+  activeFades = activeFades.filter(f => {
+    const t = (now - f.start) / f.duration;
+    const v = Math.max(0, Math.min(1, t));
+    const op = f.dir === 1 ? v : (1 - v);
+    if (f.kind === 'group') setGroupOpacity(f.target, op);
+    else if (f.kind === 'mat') setMatOpacity(f.target, op);
+    return t < 1;
+  });
+}
+
+// ============ Chapters ============
+const chapters = [
+  {
+    t: 4.5,
+    label: 'Kapitel 1 von 7',
+    title: 'Die Aufgabe im Raum',
+    desc: 'Das <span class="c-cyan">Solarmodul</span> liegt auf einem Flachdach und wird im 3D-Programm als <span class="c-cyan">Ebene E</span> modelliert. Wir bauen zuerst das Koordinatensystem auf.',
+    enter: () => {
+      fadeInGroup(xAxis, 0.7);
+      fadeInGroup(yAxis, 0.7);
+      fadeInGroup(zAxis, 0.7);
+      fadeInMat(grid.material, 0.9);
+    }
+  },
+  {
+    t: 5.5,
+    label: 'Kapitel 2 von 7',
+    title: 'Die Ebene <span class="c-cyan">E: 15y − 7z = 0</span>',
+    desc: 'Das ist die <span class="c-cyan">Ebene E</span>. Sie ist um die x-Achse gekippt — der Tilt-Winkel ergibt sich aus dem Verhältnis der y- und z-Koeffizienten zu arctan(15/7) ≈ 65°.',
+    enter: () => {
+      fadeInGroup(planeGroup, 1.2);
+      fadeInGroup(modGroup, 1.4);
+    }
+  },
+  {
+    t: 6.5,
+    label: 'Kapitel 3 von 7',
+    title: 'Beobachtung 1: Variable <span class="c-green">x</span> fehlt',
+    desc: 'In <span class="c-cyan">15y − 7z = 0</span> kommt kein <span class="c-green">x</span> vor. Der x-Wert ist also für die Ebene <span class="c-green">völlig egal</span>: Du kannst auf dem Modul beliebig weit in <span class="c-green">x-Richtung</span> wandern, ohne die Ebene zu verlassen.',
+    enter: () => {
+      fadeInGroup(xHighlightGroup, 1.0);
+      fadeInMat(movingDotMat, 0.7);
+    }
+  },
+  {
+    t: 5.5,
+    label: 'Kapitel 4 von 7',
+    title: 'Folgerung: <span class="c-green">E ∥ x-Achse</span>',
+    desc: 'Da Bewegung in <span class="c-green">x-Richtung</span> die Ebene nie verlässt, ist <span class="c-green">E parallel zur x-Achse</span>. Stolperstein: parallel — <span class="c-red">nicht</span> senkrecht.',
+    enter: () => {
+      // visuals from chapter 3 stay; nothing new to add
+    }
+  },
+  {
+    t: 6.5,
+    label: 'Kapitel 5 von 7',
+    title: 'Beobachtung 2: rechte Seite ist <span class="c-yellow">0</span>',
+    desc: 'Die allgemeine Form ist <span class="c-cyan">ax + by + cz = d</span>. Hier ist <span class="c-yellow">d = 0</span>. Wir testen den <span class="c-yellow">Ursprung (0|0|0)</span>: 15·0 − 7·0 = 0. ✓',
+    enter: () => {
+      fadeInMat(originDotMat, 0.8);
+      fadeInMat(originCoords.material, 0.8);
+    }
+  },
+  {
+    t: 5.5,
+    label: 'Kapitel 6 von 7',
+    title: 'Folgerung: <span class="c-yellow">Ursprung liegt in E</span>',
+    desc: 'Da die Gleichung mit (0|0|0) erfüllt ist, liegt der <span class="c-yellow">Ursprung exakt auf der Ebene E</span>. Das Solarmodul ist am Koordinatenursprung verankert.',
+    enter: () => {
+      fadeInMat(ringMat, 0.8);
+    }
+  },
+  {
+    t: 7.0,
+    label: 'Kapitel 7 von 7',
+    title: 'Zusammenfassung',
+    desc: '<span class="c-cyan">E: 15y − 7z = 0</span> beschreibt ein Modul, das (1) <span class="c-green">parallel zur x-Achse</span> verläuft und (2) durch den <span class="c-yellow">Ursprung</span> geht. Tatsächlich liegt sogar die <span class="c-green">x-Achse selbst</span> in der Ebene.',
+    enter: () => { /* alles bereits sichtbar */ }
+  }
+];
+
+// ============ End-state setter (for seeking) ============
+function setEndState(i) {
+  // i = -1: hide all; i >= 0: snap state after chapter i finished
+  hideAll();
+  activeFades = [];
+  if (i < 0) return;
+
+  if (i >= 0) {
+    setGroupOpacity(xAxis, 1);
+    setGroupOpacity(yAxis, 1);
+    setGroupOpacity(zAxis, 1);
+    setMatOpacity(grid.material, 1);
+  }
+  if (i >= 1) {
+    setGroupOpacity(planeGroup, 1);
+    setGroupOpacity(modGroup, 1);
+  }
+  if (i >= 2) {
+    setGroupOpacity(xHighlightGroup, 1);
+    setMatOpacity(movingDotMat, 1);
+  }
+  if (i >= 4) {
+    setMatOpacity(originDotMat, 1);
+    setMatOpacity(originCoords.material, 1);
+  }
+  if (i >= 5) {
+    setMatOpacity(ringMat, 1);
+  }
+}
+
+// ============ Timeline DOM ============
+const timeline = document.getElementById('timeline');
+
+function fmt(t) {
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+let cumStart = 0;
+chapters.forEach((ch, i) => {
+  const seg = document.createElement('div');
+  seg.className = 'segment';
+  seg.style.flex = ch.t;
+  const cleanTitle = ch.title.replace(/<[^>]+>/g, '');
+  seg.innerHTML = `
+    <div class="fill"></div>
+    <div class="num">${i + 1}</div>
+    <div class="ts">${fmt(cumStart)}</div>
+    <div class="tooltip">${cleanTitle} · ${fmt(cumStart)}–${fmt(cumStart + ch.t)}</div>
+  `;
+  seg.addEventListener('click', () => seekTo(i));
+  timeline.appendChild(seg);
+  cumStart += ch.t;
+});
+
+const fills = timeline.querySelectorAll('.segment .fill');
+const infoLabel = document.getElementById('info-label');
+const infoTitle = document.getElementById('info-title');
+const infoDesc  = document.getElementById('info-desc');
+
+// ============ Playback ============
+let chapterIdx = 0;
+let chapterT0 = 0;
+let paused = false;
+let pausedDuration = 0;
+let pauseStart = 0;
+let lastUserAction = -10;
+
+function nowVirtual() {
+  return clock.getElapsedTime() - pausedDuration;
+}
+
+function enterChapter(i) {
+  if (i < 0 || i >= chapters.length) return;
+  const ch = chapters[i];
+  infoLabel.textContent = ch.label;
+  infoTitle.innerHTML = ch.title;
+  infoDesc.innerHTML  = ch.desc;
+  chapterIdx = i;
+  chapterT0 = nowVirtual();
+  if (ch.enter) ch.enter();
+}
+
+function seekTo(i) {
+  setEndState(i - 1);
+  enterChapter(i);
+}
+
+enterChapter(0);
+
+// ============ Animate ============
+function animate() {
+  requestAnimationFrame(animate);
+  if (!paused) {
+    const now = nowVirtual();
+
+    // Auto-rotate after idle
+    if (now - lastUserAction > 3.5) {
+      camTheta += 0.0017;
+    }
+
+    // Update fades
+    updateFades(clock.getElapsedTime());
+
+    // Animate moving dot once chapter 3 has started
+    if (chapterIdx >= 2 && movingDotMat.opacity > 0.05) {
+      const tt = now * 0.7;
+      movingDot.position.x = 2.3 * Math.sin(tt);
+    } else {
+      movingDot.position.x = 0;
+    }
+
+    // Make ring face the camera
+    originRing.lookAt(camera.position);
+
+    // Chapter progress
+    const ch = chapters[chapterIdx];
+    const elapsedInChapter = now - chapterT0;
+    const progress = Math.min(1, elapsedInChapter / ch.t);
+
+    fills.forEach((f, i) => {
+      if (i < chapterIdx) f.style.width = '100%';
+      else if (i === chapterIdx) f.style.width = (progress * 100) + '%';
+      else f.style.width = '0%';
+    });
+
+    if (elapsedInChapter >= ch.t) {
+      if (chapterIdx + 1 < chapters.length) {
+        enterChapter(chapterIdx + 1);
+      } else if (elapsedInChapter > ch.t + 2.5) {
+        seekTo(0);
+      }
+    }
+  }
+
+  updateCamera();
+  renderer.render(scene, camera);
+}
+
+// ============ Input ============
+let dragging = false;
+let lastX = 0, lastY = 0;
+let pinchStart = 0;
+let pinchStartR = 0;
+
+canvas.addEventListener('mousedown', e => {
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  lastUserAction = nowVirtual();
+});
+window.addEventListener('mouseup', () => dragging = false);
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  camTheta -= dx * 0.005;
+  camPhi = Math.max(0.15, Math.min(Math.PI - 0.15, camPhi - dy * 0.005));
+  lastX = e.clientX; lastY = e.clientY;
+  lastUserAction = nowVirtual();
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  camR = Math.max(8, Math.min(40, camR + e.deltaY * 0.015));
+  lastUserAction = nowVirtual();
+}, { passive: false });
+
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    dragging = true;
+    lastX = e.touches[0].clientX;
+    lastY = e.touches[0].clientY;
+  } else if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    pinchStart = Math.hypot(dx, dy);
+    pinchStartR = camR;
+  }
+  lastUserAction = nowVirtual();
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 1 && dragging) {
+    const dx = e.touches[0].clientX - lastX;
+    const dy = e.touches[0].clientY - lastY;
+    camTheta -= dx * 0.005;
+    camPhi = Math.max(0.15, Math.min(Math.PI - 0.15, camPhi - dy * 0.005));
+    lastX = e.touches[0].clientX;
+    lastY = e.touches[0].clientY;
+  } else if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const d = Math.hypot(dx, dy);
+    if (d > 0) camR = Math.max(8, Math.min(40, pinchStartR * pinchStart / d));
+  }
+  lastUserAction = nowVirtual();
+}, { passive: false });
+canvas.addEventListener('touchend', () => dragging = false);
+
+// ============ Buttons ============
+document.getElementById('restart-btn').addEventListener('click', () => seekTo(0));
+const pauseBtn = document.getElementById('pause-btn');
+pauseBtn.addEventListener('click', () => {
+  paused = !paused;
+  if (paused) {
+    pauseStart = clock.getElapsedTime();
+    pauseBtn.textContent = '▶ Play';
+  } else {
+    pausedDuration += clock.getElapsedTime() - pauseStart;
+    pauseBtn.textContent = '⏸ Pause';
+  }
+});
+
+// ============ Resize ============
+function resize() {
+  renderer.setSize(window.innerWidth, window.innerHeight, true);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', resize);
+
+animate();
+</script>
+</body>
+</html>
