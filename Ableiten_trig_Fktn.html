@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ableitungen: Sinus & Kosinus</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Math.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    
+    <!-- MathJax für LaTeX -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <!-- Google Font: Creepster -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&display=swap" rel="stylesheet">
+    
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            chtml: {
+                displayAlign: 'center',
+                scale: 1.15 // Etwas größer für bessere Lesbarkeit im 3b1b Stil
+            }
+        };
+    </script>
+
+    <style>
+        /* 3b1b inspiriertes Styling */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0f0f0f; /* Sehr tiefes Dunkelgrau/Schwarz */
+            color: #d1d5db; /* Helles Grau für Fließtext */
+        }
+        
+        .math-container {
+            color: #ffffff; /* Reines Weiß für die Mathematik */
+        }
+
+        .font-creepster { 
+            font-family: 'Creepster', cursive; 
+            letter-spacing: 2px;
+        }
+
+        /* Versteckt den Scrollbar für eine cleanere Optik */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f0f0f; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body class="min-h-screen py-12 px-4 relative flex flex-col items-center justify-center">
+
+    <!-- Dezentes Branding unten rechts, fixiert auf dem Bildschirm -->
+    <div class="fixed bottom-4 right-6 font-creepster text-[#644533] text-xl opacity-80 pointer-events-none select-none">
+        Mathe Schreck
+    </div>
+
+    <div class="w-full max-w-2xl bg-[#1a1a1a] border border-gray-800 rounded-xl shadow-2xl overflow-hidden relative z-10">
+        
+        <!-- Minimalistischer Header -->
+        <div class="p-8 border-b border-gray-800 text-center">
+            <h1 class="text-2xl font-light text-gray-200 tracking-wide">Ketten- und Faktorregel</h1>
+            <p class="text-sm text-gray-500 mt-2">Trigonometrische Funktionen ableiten</p>
+        </div>
+
+        <div class="p-8">
+            <!-- Aufgabenstellung -->
+            <div class="text-center mb-10">
+                <p class="text-sm text-gray-400 mb-4 uppercase tracking-widest">Gegebene Funktion</p>
+                <div id="function-display" class="math-container text-3xl my-6">
+                    <!-- Funktion -->
+                </div>
+            </div>
+
+            <!-- Eingabebereich -->
+          <!-- Eingabebereich -->
+            <div class="mb-8 max-w-md mx-auto">
+                <label for="user-input" class="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider text-center">
+                    Deine Ableitung
+                </label>
+                <div class="flex items-center bg-[#0f0f0f] border border-gray-700 rounded-lg focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-colors">
+                    <div class="pl-4 pr-2 py-3 text-gray-400 font-serif italic text-lg flex-shrink-0">
+                        $f'(x) =$
+                    </div>
+                    <input type="text" id="user-input" 
+                        class="w-full py-3 pr-4 bg-transparent text-white focus:outline-none text-lg font-mono"
+                        placeholder="z.B. 6*cos(2*(x-3))"
+                        autocomplete="off">
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex gap-4 max-w-md mx-auto">
+                <button onclick="checkAnswer()" class="flex-1 bg-transparent hover:bg-gray-800 text-gray-300 font-medium py-2.5 px-4 border border-gray-600 hover:border-gray-400 rounded-lg transition-all">
+                    Prüfen
+                </button>
+                <button onclick="generateProblem()" class="flex-1 bg-transparent hover:bg-gray-800 text-gray-500 hover:text-gray-300 font-medium py-2.5 px-4 border border-gray-800 hover:border-gray-600 rounded-lg transition-all">
+                    Neue Aufgabe
+                </button>
+            </div>
+
+            <!-- Feedback -->
+            <div id="feedback-container" class="mt-8 hidden rounded-lg p-4 text-center border text-sm tracking-wide"></div>
+
+            <!-- Erklärung (öffnet sich nach Prüfung) -->
+            <div id="explanation-container" class="mt-8 hidden border-t border-gray-800 pt-8">
+                <p class="text-xs text-gray-500 uppercase tracking-widest mb-6 text-center">Lösungsweg</p>
+                <div id="explanation-content" class="text-gray-400 space-y-4 text-sm">
+                    <!-- Erklärung -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentProblem = {};
+
+        function formatParam(val, isFirst = false, isMultiplier = false) {
+            if (val === 1 && isMultiplier) return isFirst ? "" : "+";
+            if (val === -1 && isMultiplier) return "-";
+            if (val === 0) return "";
+            if (val > 0 && !isFirst) return "+" + val;
+            return val;
+        }
+
+        function generateProblem() {
+            const getRand = (min, max) => {
+                let r = 0;
+                while (r === 0) r = Math.floor(Math.random() * (max - min + 1)) + min;
+                return r;
+            };
+
+            const a = getRand(-5, 5);
+            const b = getRand(-4, 4);
+            const c = getRand(-3, 3);
+            const d = getRand(-5, 5);
+            const type = Math.random() > 0.5 ? 'sin' : 'cos';
+
+            currentProblem = { a, b, c, d, type };
+
+            let latexFunc = `f(x) = `;
+            latexFunc += formatParam(a, true, true);
+            latexFunc += `\\${type}(`;
+            latexFunc += formatParam(b, true, true);
+            latexFunc += `(x ${c < 0 ? '+' : '-'} ${Math.abs(c)}))`;
+            latexFunc += formatParam(d, false, false);
+
+            document.getElementById('function-display').innerHTML = `$$${latexFunc}$$`;
+            
+            document.getElementById('user-input').value = '';
+            document.getElementById('feedback-container').classList.add('hidden');
+            document.getElementById('explanation-container').classList.add('hidden');
+
+            MathJax.typesetPromise();
+        }
+
+        function getCorrectDerivativeExpression() {
+            const { a, b, c, type } = currentProblem;
+            const newA = a * b;
+            const newType = type === 'sin' ? 'cos' : 'sin';
+            const sign = type === 'cos' ? '-' : '';
+            return `${sign}(${newA}) * ${newType}(${b} * (x - ${c}))`;
+        }
+
+        function checkAnswer() {
+            const userInput = document.getElementById('user-input').value.trim();
+            const feedbackEl = document.getElementById('feedback-container');
+            
+            if (!userInput) {
+                showFeedback("Bitte gib eine Ableitungsfunktion ein.", "bg-[#1a1a1a]", "text-yellow-500", "border-yellow-900/50");
+                return;
+            }
+
+            try {
+                const studentExpr = math.parse(userInput).compile();
+                const correctExpr = math.parse(getCorrectDerivativeExpression()).compile();
+
+                let isCorrect = true;
+                const testValues = [1.2, 3.14, -0.5, 10];
+                
+                for (let x of testValues) {
+                    if (Math.abs(studentExpr.evaluate({ x: x }) - correctExpr.evaluate({ x: x })) > 1e-4) {
+                        isCorrect = false;
+                        break;
+                    }
+                }
+
+                if (isCorrect) {
+                    showFeedback("Korrekt abgeleitet.", "bg-[#1a1a1a]", "text-green-400", "border-green-900/50");
+                    generateExplanation();
+                } else {
+                    showFeedback("Nicht ganz. Vergleiche mit dem Lösungsweg.", "bg-[#1a1a1a]", "text-red-400", "border-red-900/50");
+                    generateExplanation();
+                }
+
+            } catch (e) {
+                showFeedback("Syntaxfehler. Achte auf Klammern und Multiplikationszeichen (*).", "bg-[#1a1a1a]", "text-orange-400", "border-orange-900/50");
+            }
+        }
+
+        function showFeedback(text, bgClass, textClass, borderClass) {
+            const el = document.getElementById('feedback-container');
+            el.className = `mt-8 rounded-lg p-4 text-center border ${bgClass} ${textClass} ${borderClass}`;
+            el.innerHTML = text;
+            el.classList.remove('hidden');
+        }
+
+        function generateExplanation() {
+            const { a, b, c, d, type } = currentProblem;
+            const newA = a * b;
+            const newType = type === 'sin' ? '\\cos' : '-\\sin';
+            
+            const explanationHTML = `
+                <div class="grid grid-cols-1 gap-4 bg-[#0f0f0f] p-6 rounded-lg border border-gray-800">
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="text-gray-500">Innere Funktion $u(x)$</span>
+                        <span class="text-gray-300 math-container">$$${b}(x ${c < 0 ? '+' : '-'} ${Math.abs(c)})$$</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="text-gray-500">Innere Ableitung $u'(x)$</span>
+                        <span class="text-gray-300 math-container">$$${b}$$</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="text-gray-500">Äußere Ableitung</span>
+                        <span class="text-gray-300 math-container">$$${newType}(...)$$</span>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <p class="text-xs text-gray-500 uppercase tracking-widest mb-2">Zusammengesetzt</p>
+                        <p class="math-container text-xl mt-4">$$f'(x) = ${newA === 1 ? '' : newA === -1 ? '-' : newA} \\${type === 'sin' ? 'cos' : 'sin'}(${b}(x ${c < 0 ? '+' : '-'} ${Math.abs(c)}))$$</p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('explanation-content').innerHTML = explanationHTML;
+            document.getElementById('explanation-container').classList.remove('hidden');
+            MathJax.typesetPromise();
+        }
+
+        // Enter-Taste im Eingabefeld abfangen
+        document.getElementById("user-input").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                checkAnswer();
+            }
+        });
+
+        window.onload = generateProblem;
+    </script>
+</body>
+</html>
